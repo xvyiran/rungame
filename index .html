@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>数学跑酷 · 游戏合集</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap');
+
+:root{
+  --bg:#052e16;
+  --card:#0a3d20;
+  --green:#4ade80;
+  --green-dark:#16a34a;
+  --green-dim:#6ee7b7;
+  --yellow:#fde047;
+  --orange:#fb923c;
+  --blue:#38bdf8;
+  --text:#ecfdf5;
+  --muted:#6ee7b7;
+}
+
+*{margin:0;padding:0;box-sizing:border-box;}
+
+html,body{
+  width:100%;min-height:100vh;
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Nunito','PingFang SC','Microsoft YaHei',sans-serif;
+  overflow-x:hidden;
+}
+
+/* 背景光晕 */
+.glow{
+  position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;
+}
+.glow i{
+  position:absolute;border-radius:50%;filter:blur(80px);opacity:.12;
+  animation:drift 10s ease-in-out infinite;
+}
+.glow i:nth-child(1){width:400px;height:400px;background:#4ade80;top:-120px;left:-100px;animation-delay:0s;}
+.glow i:nth-child(2){width:300px;height:300px;background:#fde047;bottom:-80px;right:-80px;animation-delay:3s;}
+.glow i:nth-child(3){width:240px;height:240px;background:#38bdf8;top:45%;left:55%;animation-delay:6s;}
+@keyframes drift{0%,100%{transform:translate(0,0);}50%{transform:translate(20px,-30px);}}
+
+/* 页面容器 */
+.page{
+  position:relative;z-index:1;
+  max-width:600px;margin:0 auto;
+  padding:48px 24px 56px;
+  display:flex;flex-direction:column;align-items:center;
+}
+
+/* ── 头部 ── */
+.header{text-align:center;margin-bottom:52px;}
+
+.logo{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:72px;height:72px;
+  background:var(--green);
+  border-radius:20px;
+  font-size:36px;
+  box-shadow:0 6px 0 #15803d, 0 12px 32px rgba(74,222,128,.25);
+  margin-bottom:20px;
+  animation:logo-bob 3s ease-in-out infinite;
+}
+@keyframes logo-bob{0%,100%{transform:translateY(0);}50%{transform:translateY(-7px);}}
+
+.title{
+  font-size:32px;font-weight:900;
+  color:var(--green);
+  text-shadow:0 4px 0 #15803d;
+  letter-spacing:-1px;
+  margin-bottom:8px;
+}
+.tagline{
+  font-size:14px;font-weight:700;
+  color:var(--muted);
+  letter-spacing:.5px;
+}
+
+/* ── 卡片组 ── */
+.cards{
+  width:100%;
+  display:flex;flex-direction:column;
+  gap:20px;
+}
+
+/* ── 单张卡片 ── */
+.card{
+  display:block;text-decoration:none;
+  background:var(--card);
+  border-radius:22px;
+  padding:28px 28px 24px;
+  border:2px solid rgba(74,222,128,.1);
+  position:relative;overflow:hidden;
+  transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+  -webkit-tap-highlight-color:transparent;
+  opacity:0;transform:translateY(24px);
+  animation:rise .55s ease forwards;
+}
+.card:nth-child(1){animation-delay:.08s;}
+.card:nth-child(2){animation-delay:.18s;}
+@keyframes rise{to{opacity:1;transform:translateY(0);}}
+
+.card::after{
+  content:'';
+  position:absolute;inset:0;
+  background:linear-gradient(140deg,rgba(255,255,255,.05) 0%,transparent 55%);
+  pointer-events:none;
+}
+
+.card:hover{
+  transform:translateY(-5px) scale(1.015);
+  box-shadow:0 20px 48px rgba(0,0,0,.45);
+  border-color:rgba(74,222,128,.3);
+}
+.card:active{transform:translateY(0) scale(.98);}
+
+/* 顶部色条 */
+.card-a{border-top:4px solid var(--green);}
+.card-b{border-top:4px solid var(--blue);}
+
+/* 卡片内部布局 */
+.card-inner{display:flex;align-items:flex-start;gap:20px;}
+
+.card-icon{
+  flex-shrink:0;
+  width:64px;height:64px;
+  border-radius:16px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:32px;
+  filter:drop-shadow(0 3px 6px rgba(0,0,0,.3));
+}
+.card-a .card-icon{background:rgba(74,222,128,.15);}
+.card-b .card-icon{background:rgba(56,189,248,.15);}
+
+.card-body{flex:1;}
+
+.card-name{
+  font-size:20px;font-weight:900;
+  color:var(--text);
+  line-height:1.2;
+  margin-bottom:6px;
+}
+.card-desc{
+  font-size:13px;font-weight:700;
+  color:var(--muted);
+  line-height:1.6;
+  margin-bottom:12px;
+}
+
+/* 标签行 */
+.tags{display:flex;flex-wrap:wrap;gap:6px;}
+.tag{
+  font-size:11px;font-weight:800;
+  padding:3px 10px;border-radius:20px;
+  letter-spacing:.3px;
+}
+.card-a .tag{background:rgba(74,222,128,.16);color:var(--green);}
+.card-b .tag{background:rgba(56,189,248,.16);color:var(--blue);}
+
+/* NEW 徽章 */
+.badge-new{
+  position:absolute;top:16px;right:16px;
+  background:linear-gradient(135deg,var(--blue),#6366f1);
+  color:#fff;font-size:10px;font-weight:900;
+  padding:4px 10px;border-radius:20px;
+  box-shadow:0 2px 12px rgba(56,189,248,.45);
+  animation:pulse 2.2s ease-in-out infinite;
+}
+.badge-hot{
+  position:absolute;top:16px;right:16px;
+  background:linear-gradient(135deg,#f97316,#ef4444);
+  color:#fff;font-size:10px;font-weight:900;
+  padding:4px 10px;border-radius:20px;
+  box-shadow:0 2px 12px rgba(239,68,68,.45);
+  animation:pulse 2.2s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.7;}}
+
+/* 箭头 */
+.card-arrow{
+  position:absolute;right:22px;bottom:22px;
+  width:32px;height:32px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;
+  transition:transform .2s;
+}
+.card-a .card-arrow{background:rgba(74,222,128,.18);color:var(--green);}
+.card-b .card-arrow{background:rgba(56,189,248,.18);color:var(--blue);}
+.card:hover .card-arrow{transform:translateX(4px);}
+
+/* ── 分隔线 ── */
+.divider{
+  width:100%;display:flex;align-items:center;gap:12px;
+  margin:8px 0;
+}
+.divider span{font-size:11px;font-weight:800;color:rgba(110,231,183,.3);letter-spacing:1.5px;white-space:nowrap;}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:rgba(110,231,183,.1);}
+
+/* ── 底部 ── */
+.footer{
+  margin-top:48px;
+  text-align:center;
+  font-size:12px;font-weight:700;
+  color:rgba(110,231,183,.25);
+  letter-spacing:.5px;
+  line-height:2;
+}
+
+/* ── 响应式 ── */
+@media(max-width:400px){
+  .title{font-size:26px;}
+  .card-inner{gap:14px;}
+  .card-icon{width:52px;height:52px;font-size:26px;}
+  .card-name{font-size:17px;}
+}
+</style>
+</head>
+<body>
+
+<div class="glow"><i></i><i></i><i></i></div>
+
+<div class="page">
+
+  <header class="header">
+    <div class="logo">🏃</div>
+    <div class="title">数学跑酷</div>
+    <div class="tagline">边跑边算 · 答对自动飞越 · 6–12岁</div>
+  </header>
+
+  <div class="cards">
+
+    <!-- 点击版 -->
+    <a class="card card-a" href="smart_grid_run.html">
+      <span class="badge-hot">经典版</span>
+      <div class="card-inner">
+        <div class="card-icon">👆</div>
+        <div class="card-body">
+          <div class="card-name">数学跑酷<br>点击版</div>
+          <div class="card-desc">
+            障碍出现时选择正确答案<br>
+            答对角色自动起跳飞越
+          </div>
+          <div class="tags">
+            <span class="tag">口算练习</span>
+            <span class="tag">横屏游玩</span>
+            <span class="tag">加减乘除</span>
+          </div>
+        </div>
+      </div>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <div class="divider"><span>VS</span></div>
+
+    <!-- 双道滑动版 -->
+    <a class="card card-b" href="smart_grid_run_B.html">
+      <span class="badge-new">新玩法</span>
+      <div class="card-inner">
+        <div class="card-icon">↕️</div>
+        <div class="card-body">
+          <div class="card-name">数学跑酷<br>双道滑动版</div>
+          <div class="card-desc">
+            上下双跑道同时滚动<br>
+            滑动切换跑道跨越障碍
+          </div>
+          <div class="tags">
+            <span class="tag">口算练习</span>
+            <span class="tag">横屏游玩</span>
+            <span class="tag">反应挑战</span>
+          </div>
+        </div>
+      </div>
+      <div class="card-arrow">→</div>
+    </a>
+
+  </div>
+
+  <div class="footer">
+    聪明格出品 · xvyiran.github.io/rungame<br>
+    <span style="opacity:.6;">v1.0</span>
+  </div>
+
+</div>
+</body>
+</html>
