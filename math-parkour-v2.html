@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<!--
+  组件名称：口算跑酷游戏 v3
+  用途：跑酷游戏融合口算题目 Demo，卡通儿童风格，竖屏手机
+  参考来源：word_tile_game_components.html / 03-QuestionPanel.html
+  类型：场景模版
+  日期：2026-04-03
+-->
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>口算跑酷</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #a8d8f0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100vh;
+  overflow: hidden;
+  touch-action: none;
+}
+
+#gameWrapper {
+  position: relative;
+  width: 100vw;
+  max-width: 430px;
+  overflow: hidden;
+  background: #87CEEB;
+}
+
+canvas {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  display: block;
+}
+
+/* ── 顶部 UI ── */
+#topUI {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  z-index: 20;
+  padding: 10px 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: 'Nunito', sans-serif;
+}
+
+#topBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#pauseBtn {
+  width: 40px; height: 40px;
+  background: #5bbfef;
+  border: none; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; color: #fff;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #2a8fbf;
+  flex-shrink: 0;
+  transition: transform 0.1s;
+}
+#pauseBtn:active { transform: translateY(3px); box-shadow: 0 1px 0 #2a8fbf; }
+
+#questionBox {
+  flex: 1;
+  background: #fff;
+  border-radius: 16px;
+  padding: 0 18px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 0 #c8d8e8, 0 0 0 2.5px rgba(91,191,239,0.35);
+}
+#questionText {
+  font-size: 23px;
+  font-weight: 900;
+  color: #1a2a3a;
+  letter-spacing: 1.5px;
+}
+
+#scoreBadge {
+  background: #ffd54f;
+  border-radius: 14px;
+  padding: 0 13px;
+  height: 40px;
+  display: flex; align-items: center; gap: 5px;
+  font-size: 17px; font-weight: 900;
+  color: #7a4800;
+  box-shadow: 0 4px 0 #c89000;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+#progressWrap {
+  background: rgba(255,255,255,0.35);
+  border-radius: 20px;
+  height: 8px;
+  overflow: hidden;
+}
+#progressBar {
+  height: 100%;
+  border-radius: 20px;
+  background: linear-gradient(90deg, #43e97b, #38f9d7);
+  width: 0%;
+  transition: width 0.35s ease;
+}
+
+/* ── 答题反馈 ── */
+#feedbackBanner {
+  position: absolute;
+  z-index: 30;
+  top: 92px;
+  left: 12px; right: 12px;
+  border-radius: 14px;
+  padding: 8px 16px;
+  display: flex; align-items: center; gap: 10px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 15px; font-weight: 900;
+  opacity: 0;
+  transform: translateY(-8px) scale(0.95);
+  transition: opacity 0.18s, transform 0.18s;
+  pointer-events: none;
+}
+#feedbackBanner.show { opacity: 1; transform: translateY(0) scale(1); }
+#feedbackBanner.correct {
+  background: #e8faf0;
+  border: 2.5px solid #2ecc71;
+  color: #1a7a45;
+  box-shadow: 0 4px 0 #b2eecf;
+}
+#feedbackBanner.wrong {
+  background: #fff0f0;
+  border: 2.5px solid #e74c3c;
+  color: #8a1010;
+  box-shadow: 0 4px 0 #ffc8c8;
+}
+.fb-icon {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 900;
+  flex-shrink: 0;
+}
+.correct .fb-icon { background: #2ecc71; color: #fff; }
+.wrong   .fb-icon { background: #e74c3c; color: #fff; }
+
+/* ── 连击 ── */
+#comboTag {
+  position: absolute;
+  z-index: 31;
+  right: 14px; top: 140px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 20px; font-weight: 900;
+  color: #ff9f1c;
+  text-shadow: 0 2px 0 #c06000, 0 0 12px rgba(255,159,28,0.4);
+  opacity: 0;
+  transform: scale(0.6) translateY(6px);
+  transition: opacity 0.18s, transform 0.22s cubic-bezier(0.34,1.56,0.64,1);
+  pointer-events: none;
+}
+#comboTag.show { opacity: 1; transform: scale(1) translateY(0); }
+
+/* ── Overlays ── */
+.overlay {
+  position: absolute; inset: 0;
+  z-index: 50;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 20px;
+  background: rgba(240,248,255,0.94);
+  backdrop-filter: blur(10px);
+  font-family: 'Nunito', sans-serif;
+}
+.overlay.hidden { display: none; }
+
+.ov-emoji { font-size: 72px; line-height: 1; }
+.ov-title { font-size: 32px; font-weight: 900; color: #1a2a3a; text-align: center; }
+.ov-sub   { font-size: 14px; font-weight: 700; color: #5a7090; text-align: center; line-height: 1.9; max-width: 280px; }
+.ov-score {
+  font-size: 66px; font-weight: 900;
+  color: #ff9f1c;
+  text-shadow: 0 5px 0 #c06000;
+}
+
+.btn-primary {
+  background: linear-gradient(180deg, #4cd964 0%, #34c759 100%);
+  border: none; border-radius: 18px;
+  padding: 14px 48px;
+  font-family: 'Nunito', sans-serif; font-size: 21px; font-weight: 900;
+  color: #fff; cursor: pointer;
+  box-shadow: 0 6px 0 #1a8a36, 0 0 0 3px rgba(52,199,89,0.2);
+  letter-spacing: 1px;
+  transition: transform 0.1s;
+}
+.btn-primary:active { transform: translateY(4px); box-shadow: 0 2px 0 #1a8a36; }
+
+.btn-secondary {
+  background: #e8eef5; border: none; border-radius: 16px;
+  padding: 12px 38px;
+  font-family: 'Nunito', sans-serif; font-size: 16px; font-weight: 900;
+  color: #5a7090; cursor: pointer;
+  box-shadow: 0 4px 0 #c0ccd8;
+  transition: transform 0.1s;
+}
+.btn-secondary:active { transform: translateY(3px); box-shadow: 0 1px 0 #c0ccd8; }
+
+#opHint {
+  position: absolute; bottom: 14px; left: 0; right: 0;
+  text-align: center;
+  font-family: 'Nunito', sans-serif; font-size: 11px; font-weight: 700;
+  color: rgba(255,255,255,0.5);
+  pointer-events: none; z-index: 10;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+</style>
+</head>
+<body>
+<div id="gameWrapper">
+  <canvas id="gc"></canvas>
+
+  <div id="topUI">
+    <div id="topBar">
+      <button id="pauseBtn">⏸</button>
+      <div id="questionBox"><span id="questionText">3 × 7 = ?</span></div>
+      <div id="scoreBadge">⭐ <span id="scoreNum">0</span></div>
+    </div>
+    <div id="progressWrap"><div id="progressBar"></div></div>
+  </div>
+
+  <div id="feedbackBanner"><div class="fb-icon" id="fbIcon">✓</div><span id="fbText">答对啦！</span></div>
+  <div id="comboTag">🔥 3连击！</div>
+  <div id="opHint">← 左滑 / 右滑 → 换道 &nbsp;|&nbsp; 键盘 ← →</div>
+
+  <!-- 开始 -->
+  <div class="overlay" id="startOv">
+    <div class="ov-emoji">🐻</div>
+    <div class="ov-title">口算跑酷</div>
+    <div class="ov-sub">三条赛道各有一个答案<br>滑到 <strong style="color:#34c759">正确那条道</strong> 冲过去<br>答错就会撞墙哦！</div>
+    <button class="btn-primary" onclick="startGame()">开始冲刺 🚀</button>
+  </div>
+
+  <!-- 暂停 -->
+  <div class="overlay hidden" id="pauseOv">
+    <div class="ov-emoji">⏸️</div>
+    <div class="ov-title">游戏暂停</div>
+    <button class="btn-primary" onclick="resumeGame()">继续跑！</button>
+    <button class="btn-secondary" onclick="restartGame()">重新开始</button>
+  </div>
+
+  <!-- 结束 -->
+  <div class="overlay hidden" id="overOv">
+    <div id="overEmoji" class="ov-emoji">💥</div>
+    <div class="ov-title" id="overTitle">撞墙了！</div>
+    <div class="ov-score" id="overScore">0</div>
+    <div class="ov-sub" id="overSub">答对了 0 题</div>
+    <button class="btn-primary" onclick="restartGame()">再冲一次！</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// CONFIG
+// ============================================================
+const CONFIG = {
+  TOTAL_QUESTIONS:   15,
+  OBS_SPEED_INIT:    2.4,
+  OBS_SPEED_MAX:     6.5,
+  SPEED_INC:         0.15,
+  OBS_INTERVAL_INIT: 2600,
+  OBS_INTERVAL_MIN:  1500,
+  INTERVAL_DEC:      55,
+  SWIPE_THRESHOLD:   36,
+  TOP_UI_H:          86,
+  VANISH_RATIO:      0.02,  // 消失线紧贴题目区下方
+};
+
+// ============================================================
+// Canvas
+// ============================================================
+const canvas = document.getElementById('gc');
+const ctx    = canvas.getContext('2d');
+let W, H, VANISH_Y;
+
+function resize() {
+  const wrap = document.getElementById('gameWrapper');
+  // 减去80px底部安全距离，兼容浏览器工具栏、第三方广告条等
+  const vh = Math.min(window.innerHeight - 80, 820);
+  wrap.style.height = vh + 'px';
+  W = canvas.width  = wrap.clientWidth;
+  H = canvas.height = vh;
+  VANISH_Y = CONFIG.TOP_UI_H + (H - CONFIG.TOP_UI_H) * CONFIG.VANISH_RATIO;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// 赛道底部：接近全屏，左右各留2%边距
+const TRACK_BOT_MARGIN = 0.02;
+// 赛道顶部：约占屏幕宽度35%，居中
+const TRACK_TOP_RATIO  = 0.35;
+
+function laneBottomX(lane) {
+  const left  = W * TRACK_BOT_MARGIN;
+  const right = W * (1 - TRACK_BOT_MARGIN);
+  const laneW = (right - left) / 3;
+  return left + laneW * lane + laneW / 2;  // lane=0/1/2 → center of each lane
+}
+function laneTopX(lane) {
+  const left  = W * (0.5 - TRACK_TOP_RATIO / 2);
+  const right = W * (0.5 + TRACK_TOP_RATIO / 2);
+  const laneW = (right - left) / 3;
+  return left + laneW * lane + laneW / 2;
+}
+function laneTopW()  { return W * TRACK_TOP_RATIO / 3; }
+function laneBotW()  { return W * (1 - TRACK_BOT_MARGIN * 2) / 3; }
+
+// prog: 0=底部(近) 1=顶部(远)；平方映射让近处视觉加速
+function perspPt(lane, prog) {
+  const vProg = prog * prog;
+  const bx = laneBottomX(lane);   // lane=0/1/2，函数内已+laneW/2取中心
+  const tx = laneTopX(lane);
+  return {
+    x:     bx + (tx - bx) * vProg,
+    y:     H  + (VANISH_Y - H) * vProg,
+    vProg,
+  };
+}
+// 给定 prog，计算该位置单条赛道宽度
+function laneWidthAt(prog) {
+  const vProg = prog * prog;
+  return laneBotW() + (laneTopW() - laneBotW()) * vProg;
+}
+
+// ============================================================
+// 题目生成
+// ============================================================
+function genQ() {
+  const ops=['+','-','×'];
+  const op=ops[Math.floor(Math.random()*3)];
+  let a,b,ans;
+  if(op==='+'){a=r(5,50);b=r(5,50);ans=a+b;}
+  else if(op==='-'){a=r(20,80);b=r(1,a-1);ans=a-b;}
+  else{a=r(2,9);b=r(2,9);ans=a*b;}
+  const ws=new Set();
+  while(ws.size<2){const d=r(1,12),s=Math.random()>.5?1:-1,w=ans+s*d;if(w!==ans&&w>0)ws.add(w);}
+  const opts=shuffle([ans,...[...ws]]);
+  return {text:`${a} ${op} ${b} = ?`, opts, ans, correctLane:opts.indexOf(ans)};
+}
+function r(a,b){return Math.floor(Math.random()*(b-a+1))+a;}
+function shuffle(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;}
+
+// ============================================================
+// 状态
+// ============================================================
+let gs={
+  state:'start', score:0, combo:0, answered:0, currentQ:null,
+  targetLane:1, charX:0, obstacles:[], obsSpeed:CONFIG.OBS_SPEED_INIT,
+  obsInterval:CONFIG.OBS_INTERVAL_INIT, lastObsTime:0, trackOffset:0, raf:null,
+};
+
+// ============================================================
+// 绘制：天空 + 地面
+// ============================================================
+function drawBg() {
+  // 天空：多层渐变，更饱和
+  const sky = ctx.createLinearGradient(0, 0, 0, VANISH_Y);
+  sky.addColorStop(0,   '#4fc3f7');
+  sky.addColorStop(0.5, '#81d4fa');
+  sky.addColorStop(1,   '#b3e5fc');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, VANISH_Y);
+
+  // 云朵（多朵，层次感）
+  drawCloud(W*0.12, VANISH_Y*0.22, 0.75, 0.96);
+  drawCloud(W*0.65, VANISH_Y*0.12, 1.0,  0.92);
+  drawCloud(W*0.38, VANISH_Y*0.50, 0.55, 0.85);
+
+  // 远处山丘（深绿 + 浅绿叠层）
+  ctx.fillStyle = '#5aaa32';
+  ctx.beginPath();
+  ctx.ellipse(W*0.12, VANISH_Y+2, W*0.28, 32, 0, Math.PI, 0); ctx.fill();
+  ctx.fillStyle = '#72c842';
+  ctx.beginPath();
+  ctx.ellipse(W*0.10, VANISH_Y+2, W*0.22, 22, 0, Math.PI, 0); ctx.fill();
+
+  ctx.fillStyle = '#5aaa32';
+  ctx.beginPath();
+  ctx.ellipse(W*0.88, VANISH_Y+2, W*0.25, 28, 0, Math.PI, 0); ctx.fill();
+  ctx.fillStyle = '#72c842';
+  ctx.beginPath();
+  ctx.ellipse(W*0.90, VANISH_Y+2, W*0.18, 20, 0, Math.PI, 0); ctx.fill();
+
+  // 地面（暖米色，有光感）
+  const ground = ctx.createLinearGradient(0, VANISH_Y, 0, H);
+  ground.addColorStop(0,    '#e8f4d0');
+  ground.addColorStop(0.06, '#f5ead8');
+  ground.addColorStop(0.3,  '#f0d9a8');
+  ground.addColorStop(1,    '#e0c080');
+  ctx.fillStyle = ground;
+  ctx.fillRect(0, VANISH_Y, W, H - VANISH_Y);
+}
+
+function drawCloud(cx, cy, scale, alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = '#fff';
+  ctx.shadowColor = 'rgba(100,180,255,0.3)';
+  ctx.shadowBlur = 8;
+  const r = 22 * scale;
+  [
+    [0, 0, r],
+    [r*0.75, -r*0.28, r*0.78],
+    [r*1.6,  0,       r*0.88],
+    [r*2.35, -r*0.1,  r*0.68],
+    [r*0.85, r*0.18,  r*0.62],
+  ].forEach(([dx, dy, rad]) => {
+    ctx.beginPath(); ctx.arc(cx+dx, cy+dy, rad, 0, Math.PI*2); ctx.fill();
+  });
+  ctx.restore();
+}
+
+// ============================================================
+// 绘制：赛道（透视）
+// ============================================================
+// 赛道三条颜色
+const LANE_BG = ['#fdf4e3', '#fef9f0', '#fdf4e3'];
+
+function drawTrack() {
+  const vy = VANISH_Y;
+  const botLeft  = W * TRACK_BOT_MARGIN;
+  const botRight = W * (1 - TRACK_BOT_MARGIN);
+  const botLaneW = (botRight - botLeft) / 3;
+  const topLeft  = W * (0.5 - TRACK_TOP_RATIO / 2);
+  const topRight = W * (0.5 + TRACK_TOP_RATIO / 2);
+  const topLaneW = (topRight - topLeft) / 3;
+
+  // 赛道底面（带轻微渐变感）
+  for(let lane=0; lane<3; lane++){
+    const bl = botLeft  + botLaneW * lane;
+    const br = bl + botLaneW;
+    const tl = topLeft  + topLaneW * lane;
+    const tr = tl + topLaneW;
+    const grad = ctx.createLinearGradient(0, vy, 0, H);
+    grad.addColorStop(0, lane===1 ? '#fef9f0' : '#fdf4e3');
+    grad.addColorStop(1, lane===1 ? '#f5e8c8' : '#eedac0');
+    ctx.beginPath();
+    ctx.moveTo(tl,vy); ctx.lineTo(tr,vy);
+    ctx.lineTo(br,H);  ctx.lineTo(bl,H);
+    ctx.closePath();
+    ctx.fillStyle = grad; ctx.fill();
+  }
+
+  // 横向格子线
+  const rowCount = 24;
+  for(let k=0; k<rowCount; k++){
+    const rawP  = ((k + gs.trackOffset) % rowCount) / rowCount;
+    if(rawP < 0.01) continue;
+    const prog  = 1 - rawP;
+    const vProg = prog * prog;
+    const y        = H + (vy - H) * vProg;
+    const curLeft  = botLeft  + (topLeft  - botLeft)  * vProg;
+    const curRight = botRight + (topRight - botRight) * vProg;
+    ctx.strokeStyle = `rgba(200,170,110,${0.10 + rawP * 0.40})`;
+    ctx.lineWidth   = 1.5 * (1 - vProg * 0.7);
+    ctx.beginPath(); ctx.moveTo(curLeft, y); ctx.lineTo(curRight, y); ctx.stroke();
+  }
+
+  // 赛道分割线（细虚线）
+  for(let i=0; i<=3; i++){
+    const bx = botLeft + botLaneW * i;
+    const tx = topLeft + topLaneW * i;
+    ctx.strokeStyle = 'rgba(210,175,105,0.40)';
+    ctx.lineWidth = 1.2;
+    ctx.setLineDash([8, 6]);
+    ctx.beginPath(); ctx.moveTo(tx, vy); ctx.lineTo(bx, H); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // 两侧路缘（红白相间条纹）
+  for(const side of[-1,1]){
+    const botEdge = side===-1 ? botLeft  : botRight;
+    const topEdge = side===-1 ? topLeft  : topRight;
+    const outerX  = side===-1 ? 0 : W;
+    // 红色底
+    ctx.beginPath();
+    ctx.moveTo(topEdge,vy); ctx.lineTo(botEdge,H);
+    ctx.lineTo(outerX,H);   ctx.lineTo(outerX,vy);
+    ctx.closePath();
+    ctx.fillStyle = '#e8303a'; ctx.fill();
+    // 白色斜条纹
+    const stripeCount = 6;
+    for(let s=0; s<stripeCount; s++){
+      const t0 = s / stripeCount;
+      const t1 = Math.min((s + 0.45) / stripeCount, 1);
+      const y0  = vy + (H - vy) * t0,  y1  = vy + (H - vy) * t1;
+      const lx0 = topEdge + (botEdge - topEdge) * t0;
+      const lx1 = topEdge + (botEdge - topEdge) * t1;
+      ctx.beginPath();
+      ctx.moveTo(outerX,y0); ctx.lineTo(lx0,y0);
+      ctx.lineTo(lx1,y1);    ctx.lineTo(outerX,y1);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(255,255,255,0.36)'; ctx.fill();
+    }
+    // 内侧细边
+    ctx.strokeStyle = 'rgba(0,0,0,0.10)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(topEdge, vy); ctx.lineTo(botEdge, H); ctx.stroke();
+  }
+}
+
+// ============================================================
+// 绘制：角色
+// ============================================================
+function drawChar() {
+  const targetX = laneBottomX(gs.targetLane);
+  gs.charX += (targetX - gs.charX) * 0.2;
+  const prog  = 0.20;
+  const vProg = prog * prog;
+  const cy0 = H + (VANISH_Y - H) * vProg;
+  const scl = (1 - vProg * 0.55) * 1.3;
+  const cw  = 38 * scl, ch = 46 * scl;
+  const cx  = gs.charX;
+  const bodyBob = Math.abs(Math.sin(Date.now() / 130)) * 1.8 * scl;
+  const cy = cy0 - bodyBob * 0.4;
+
+  ctx.save();
+
+  // 腿
+  for(const [side, phase] of [[-1, 0],[1, Math.PI]]){
+    const swing = Math.sin(Date.now()/130 + phase) * 0.35;
+    const lx = cx + side * cw * 0.20;
+    const ly = cy + ch * 0.40;
+    ctx.save();
+    ctx.translate(lx, ly);
+    ctx.rotate(swing);
+    ctx.fillStyle = '#a06030';
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(-cw*0.11, 0, cw*0.22, ch*0.36, cw*0.09) :
+      ctx.rect(-cw*0.11, 0, cw*0.22, ch*0.36);
+    ctx.fill();
+    ctx.fillStyle = '#7a3a10';
+    ctx.beginPath();
+    ctx.ellipse(side*cw*0.05, ch*0.36, cw*0.15, cw*0.08, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // 地面阴影
+  ctx.fillStyle = 'rgba(0,0,0,0.10)';
+  ctx.beginPath();
+  ctx.ellipse(cx, cy+ch*0.70, cw*0.48, cw*0.10, 0, 0, Math.PI*2); ctx.fill();
+
+  // 身体
+  ctx.fillStyle = '#c07840';
+  ctx.beginPath(); ctx.ellipse(cx, cy+ch*0.10, cw*0.44, ch*0.36, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#e8c090';
+  ctx.beginPath(); ctx.ellipse(cx, cy+ch*0.15, cw*0.26, ch*0.22, 0, 0, Math.PI*2); ctx.fill();
+
+  // 手臂
+  for(const [side, phase] of [[-1, Math.PI],[1, 0]]){
+    const swing = Math.sin(Date.now()/130 + phase) * 0.40;
+    ctx.save();
+    ctx.translate(cx + side*cw*0.38, cy + ch*0.04);
+    ctx.rotate(swing * side * 0.8);
+    ctx.fillStyle = '#c07840';
+    ctx.beginPath(); ctx.ellipse(0, ch*0.15, cw*0.11, ch*0.18, 0, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  // 头
+  ctx.fillStyle = '#d09060';
+  ctx.beginPath(); ctx.ellipse(cx, cy-ch*0.20, cw*0.40, cw*0.37, 0, 0, Math.PI*2); ctx.fill();
+
+  // 耳朵
+  for(const s of[-1,1]){
+    ctx.fillStyle='#c07840';
+    ctx.beginPath(); ctx.arc(cx+s*cw*0.32, cy-ch*0.50, cw*0.15, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle='#e8a878';
+    ctx.beginPath(); ctx.arc(cx+s*cw*0.32, cy-ch*0.50, cw*0.09, 0, Math.PI*2); ctx.fill();
+  }
+
+  // 眼睛
+  for(const s of[-1,1]){
+    ctx.fillStyle='#2a1a0a';
+    ctx.beginPath(); ctx.arc(cx+s*cw*0.15, cy-ch*0.21, 3.0*scl/1.3, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle='#fff';
+    ctx.beginPath(); ctx.arc(cx+s*cw*0.15+scl*0.7, cy-ch*0.24, 1.1*scl/1.3, 0, Math.PI*2); ctx.fill();
+  }
+
+  // 鼻子
+  ctx.fillStyle='#7a3a10';
+  ctx.beginPath(); ctx.ellipse(cx, cy-ch*0.12, 3.0*scl/1.3, 2.0*scl/1.3, 0, 0, Math.PI*2); ctx.fill();
+
+  // 微笑
+  ctx.strokeStyle='#5a2808';
+  ctx.lineWidth=1.5*scl/1.3;
+  ctx.lineCap='round';
+  ctx.beginPath();
+  ctx.arc(cx, cy-ch*0.06, cw*0.13, 0.2, Math.PI-0.2);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+// ============================================================
+// 障碍物
+// ============================================================
+// 选项板：更鲜艳饱和的卡通色
+const TILE_STYLES=[
+  {bg:'#29abe2', sh:'#1478a8', hi:'rgba(255,255,255,0.35)'},
+  {bg:'#ff9f1c', sh:'#c06000', hi:'rgba(255,255,255,0.35)'},
+  {bg:'#2ecc71', sh:'#1a7a40', hi:'rgba(255,255,255,0.35)'},
+];
+const TILE_CORRECT={bg:'#2ecc71',sh:'#1a7a40',hi:'rgba(255,255,255,0.35)'};
+const TILE_WRONG  ={bg:'#e74c3c',sh:'#8a1010',hi:'rgba(255,255,255,0.25)'};
+
+class Obstacle {
+  constructor(q){
+    this.q=q;
+    this.t=1.0;      // 线性时间参数 1→0
+    this.spd=gs.obsSpeed;
+    this.state='active';
+  }
+  get prog(){ return this.t*this.t; }
+  update(){
+    // 近处（t小）更快，远处（t大）慢一点 — 营造加速冲来的感觉
+    let mult = 1.0;
+    if(this.t > 0.7)      mult = 0.55;  // 远处慢
+    else if(this.t < 0.4) mult = 1.6;   // 近处快
+    this.t -= this.spd * mult * 0.0014;
+  }
+  draw(){
+    for(let lane=0;lane<3;lane++){
+      const p  = perspPt(lane, this.prog);
+      const lw = laneWidthAt(this.prog);
+      const tw = lw * 0.78;
+      const th = tw * 0.50;
+      const rad = th * 0.46; // 接近胶囊形
+
+      let s;
+      if(this.state==='correct'&&lane===this.q.correctLane) s=TILE_CORRECT;
+      else if(this.state==='wrong'&&lane===gs.targetLane)   s=TILE_WRONG;
+      else s=TILE_STYLES[lane];
+
+      ctx.save();
+      // 底部立体投影
+      ctx.fillStyle=s.sh;
+      roundRect(ctx,p.x-tw/2, p.y-th/2+th*0.18, tw, th, rad); ctx.fill();
+      // 主体
+      ctx.fillStyle=s.bg;
+      roundRect(ctx,p.x-tw/2, p.y-th/2, tw, th, rad); ctx.fill();
+      // 顶部高光（椭圆形白条）
+      ctx.save();
+      ctx.globalAlpha=0.38;
+      ctx.fillStyle='#fff';
+      roundRect(ctx,p.x-tw*0.36, p.y-th*0.44, tw*0.72, th*0.36, rad*0.7);
+      ctx.fill();
+      ctx.restore();
+      // 数字
+      ctx.fillStyle='#fff';
+      const fontSize = Math.max(10, Math.round(tw * 0.30));
+      ctx.font=`900 ${fontSize}px 'Nunito',Arial`;
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.shadowColor='rgba(0,0,0,0.25)'; ctx.shadowBlur=4;
+      ctx.fillText(String(this.q.opts[lane]), p.x, p.y+th*0.04);
+      ctx.restore();
+    }
+  }
+}
+
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
+}
+
+// ============================================================
+// 主循环
+// ============================================================
+function loop(ts){
+  if(gs.state!=='playing') return;
+  gs.trackOffset=(gs.trackOffset+gs.obsSpeed*0.052)%22;
+
+  // 每道题只有一个障碍物：当跑道上没有障碍物时才生成
+  if(gs.obstacles.length===0 && gs.currentQ && !gs.pendingSpawn){
+    // 首题延迟600ms让玩家反应，换题后立即出现（pendingSpawn控制）
+    if(ts - gs.lastObsTime > 600){
+      gs.obstacles.push(new Obstacle(gs.currentQ));
+      gs.lastObsTime = ts;
+    }
+  }
+  gs.pendingSpawn = false;
+
+  ctx.clearRect(0,0,W,H);
+  drawBg(); drawTrack();
+
+  for(let i=gs.obstacles.length-1;i>=0;i--){
+    const obs=gs.obstacles[i];
+    obs.update();
+    if(obs.state==='active'&&obs.t<0.45){  // 与角色prog=0.20对应（t=√0.20≈0.45）
+      if(gs.targetLane===obs.q.correctLane){obs.state='correct';doCorrect();}
+      else{obs.state='wrong';doWrong();}
+    }
+    obs.draw();
+    if(obs.t<-0.08) gs.obstacles.splice(i,1);
+  }
+
+  drawChar();
+  gs.raf=requestAnimationFrame(loop);
+}
+
+// ============================================================
+// 答对 / 答错
+// ============================================================
+let fbT=null, comboT=null;
+
+function doCorrect(){
+  gs.answered++; gs.combo++;
+  gs.score+=10*Math.min(gs.combo,5);
+  gs.obsSpeed=Math.min(CONFIG.OBS_SPEED_MAX,gs.obsSpeed+CONFIG.SPEED_INC);
+  updateUI(); showFeedback(true);
+  // 切换新题，清空跑道
+  gs.currentQ=genQ();
+  document.getElementById('questionText').textContent=gs.currentQ.text;
+  gs.obstacles=[];
+  gs.lastObsTime=performance.now(); // 重置计时，下一帧600ms判断后spawn
+  gs.pendingSpawn=false;
+  if(gs.answered>=CONFIG.TOTAL_QUESTIONS) setTimeout(()=>endGame(true),700);
+}
+
+function doWrong(){
+  gs.combo=0; showFeedback(false);
+  setTimeout(()=>endGame(false),700);
+}
+
+function showFeedback(ok){
+  const banner=document.getElementById('feedbackBanner');
+  const icon=document.getElementById('fbIcon');
+  const text=document.getElementById('fbText');
+  banner.className=ok?'correct':'wrong';
+  icon.textContent=ok?'✓':'✗';
+  if(ok){
+    const add=10*Math.min(gs.combo,5);
+    text.textContent=gs.combo>=3?`太棒了！+${add}分`:`答对啦！+${add}分`;
+  } else {
+    text.textContent='哎呀，撞墙啦！';
+  }
+  clearTimeout(fbT);
+  banner.classList.add('show');
+  fbT=setTimeout(()=>banner.classList.remove('show'),900);
+
+  if(ok&&gs.combo>=3){
+    const tag=document.getElementById('comboTag');
+    tag.textContent=`🔥 ${gs.combo}连击！`;
+    clearTimeout(comboT);
+    tag.classList.add('show');
+    comboT=setTimeout(()=>tag.classList.remove('show'),1000);
+  }
+}
+
+function updateUI(){
+  document.getElementById('scoreNum').textContent=gs.score;
+  document.getElementById('progressBar').style.width=
+    Math.min(100,gs.answered/CONFIG.TOTAL_QUESTIONS*100)+'%';
+}
+
+// ============================================================
+// 游戏控制
+// ============================================================
+function startGame(){
+  hideOvs(); initState();
+  gs.state='playing';
+  gs.lastObsTime=performance.now(); // 游戏开始后600ms出现第一组选项
+  gs.raf=requestAnimationFrame(loop);
+}
+function restartGame(){ cancelAnimationFrame(gs.raf); startGame(); }
+function resumeGame(){
+  document.getElementById('pauseOv').classList.add('hidden');
+  gs.state='playing'; gs.raf=requestAnimationFrame(loop);
+}
+function pauseGame(){
+  if(gs.state!=='playing') return;
+  gs.state='paused'; cancelAnimationFrame(gs.raf);
+  document.getElementById('pauseOv').classList.remove('hidden');
+}
+function endGame(win){
+  gs.state='over'; cancelAnimationFrame(gs.raf);
+  const ov=document.getElementById('overOv');
+  document.getElementById('overEmoji').textContent=win?'🎉':'💥';
+  document.getElementById('overTitle').textContent=win?'冲线成功！':'撞墙了！';
+  document.getElementById('overScore').textContent=gs.score;
+  document.getElementById('overSub').textContent=`答对了 ${gs.answered} 题`;
+  ov.classList.remove('hidden');
+}
+function initState(){
+  Object.assign(gs,{
+    score:0,combo:0,answered:0,targetLane:1,
+    charX:laneBottomX(1),obstacles:[],
+    obsSpeed:CONFIG.OBS_SPEED_INIT,obsInterval:CONFIG.OBS_INTERVAL_INIT,
+    trackOffset:0,currentQ:genQ(),pendingSpawn:false,
+  });
+  document.getElementById('questionText').textContent=gs.currentQ.text;
+  document.getElementById('scoreNum').textContent='0';
+  document.getElementById('progressBar').style.width='0%';
+  document.getElementById('feedbackBanner').classList.remove('show');
+  document.getElementById('comboTag').classList.remove('show');
+}
+function hideOvs(){['startOv','pauseOv','overOv'].forEach(id=>document.getElementById(id).classList.add('hidden'));}
+
+// ============================================================
+// 输入
+// ============================================================
+document.getElementById('pauseBtn').addEventListener('click',()=>{
+  if(gs.state==='playing') pauseGame();
+  else if(gs.state==='paused') resumeGame();
+});
+document.addEventListener('keydown',e=>{
+  if(gs.state!=='playing') return;
+  if(e.key==='ArrowLeft')  gs.targetLane=Math.max(0,gs.targetLane-1);
+  if(e.key==='ArrowRight') gs.targetLane=Math.min(2,gs.targetLane+1);
+});
+let tx=0,ty=0;
+const wrap=document.getElementById('gameWrapper');
+// Fix 3: 监听document而非wrap，避免touch-action:none拦截
+document.addEventListener('touchstart',e=>{
+  tx=e.touches[0].clientX; ty=e.touches[0].clientY;
+},{passive:true});
+document.addEventListener('touchend',e=>{
+  if(gs.state!=='playing') return;
+  const dx=e.changedTouches[0].clientX-tx, dy=e.changedTouches[0].clientY-ty;
+  if(Math.abs(dx)>Math.abs(dy)&&Math.abs(dx)>CONFIG.SWIPE_THRESHOLD)
+    gs.targetLane=dx<0?Math.max(0,gs.targetLane-1):Math.min(2,gs.targetLane+1);
+},{passive:true});
+// 阻止页面滚动
+document.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
+
+// 初始渲染一帧（预热）
+gs.charX=laneBottomX(1);
+resize();
+</script>
+</body>
+</html>
