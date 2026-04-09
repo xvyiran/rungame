@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Nunito', sans-serif; background: #dde3f5; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .phone-shell { width: 375px; height: 720px; background: #1a1a2e; border-radius: 44px; padding: 14px; box-shadow: 0 30px 80px rgba(0,0,0,0.45), inset 0 0 0 2px #333; position: relative; flex-shrink: 0; }
+  .phone-notch { width: 100px; height: 20px; background: #1a1a2e; border-radius: 0 0 14px 14px; margin: 0 auto 6px; }
+  .phone-screen { width: 100%; height: calc(100% - 26px); background: #f0f4ff; border-radius: 32px; overflow: hidden; position: relative; }
+  .game-root { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; padding: 14px 10px 10px; overflow: hidden; }
+  .top-bar { width: 100%; display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .game-title { font-size: 17px; font-weight: 900; color: #2d3a8c; }
+  .top-right { display: flex; align-items: center; gap: 8px; }
+  .timer { font-size: 15px; font-weight: 800; color: #2d3a8c; background: white; border-radius: 8px; padding: 3px 10px; box-shadow: 0 2px 0 #c5cdf5; }
+  .mute-btn { width: 30px; height: 30px; border-radius: 8px; background: white; border: none; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 0 #c5cdf5; transition: transform 0.1s; }
+  .mute-btn:active { transform: scale(0.9); }
+  .mode-hint { font-size: 11px; font-weight: 700; color: #6b7bcc; background: white; border-radius: 20px; padding: 4px 14px; margin-bottom: 8px; box-shadow: 0 2px 6px rgba(100,120,220,0.1); }
+  .action-bar { width: 100%; display: flex; gap: 6px; margin-bottom: 10px; align-items: center; }
+  .btn { font-family: 'Nunito', sans-serif; font-size: 11px; font-weight: 800; border: none; border-radius: 8px; padding: 6px 10px; cursor: pointer; outline: none; transition: transform 0.1s; }
+  .btn:active { transform: translateY(2px); }
+  .btn-hint { background: #ffe066; color: #7a5c00; box-shadow: 0 2px 0 #c8a200; }
+  .btn-shuffle { background: #a5f3c3; color: #1a6b3a; box-shadow: 0 2px 0 #52c47a; }
+  .btn-restart { background: #ffd6d6; color: #8b1a1a; box-shadow: 0 2px 0 #f08080; }
+  .pairs-left { margin-left: auto; font-size: 11px; font-weight: 800; color: #6b7bcc; }
+  .board-wrap { position: relative; }
+  .board { display: grid; gap: 7px; }
+  .tile { border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; cursor: pointer; border: 3px solid transparent; line-height: 1.2; text-align: center; padding: 4px; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.2); transition: transform 0.12s, box-shadow 0.12s; word-break: break-word; }
+  .tile.en { background: #4a90e2; box-shadow: 0 3px 0 #2a5f9e; }
+  .tile.zh { background: #ff8c42; box-shadow: 0 3px 0 #b85a20; }
+  .tile.empty { background: rgba(100,120,220,0.06); box-shadow: none; cursor: default; border: 2px dashed rgba(100,120,220,0.12); pointer-events: none; }
+  .tile.clearing { pointer-events: none; opacity: 0.5; }
+  .tile.selected { border-color: #ffe066; transform: scale(1.07) translateY(-2px); z-index: 10; }
+  .tile.en.selected { box-shadow: 0 5px 0 #2a5f9e, 0 0 0 3px #ffe066; }
+  .tile.zh.selected { box-shadow: 0 5px 0 #b85a20, 0 0 0 3px #ffe066; }
+  .tile.hint { animation: hintPulse 0.6s ease-in-out 3; }
+  @keyframes hintPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.1);border-color:#ffe066} }
+  .tile.matched-anim { animation: matchPop 0.35s ease forwards; }
+  @keyframes matchPop { 0%{transform:scale(1.1);opacity:1} 60%{transform:scale(1.2);opacity:0.6} 100%{transform:scale(0);opacity:0} }
+  .tile.shake { animation: shake 0.4s ease; }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-4px)} 40%{transform:translateX(4px)} 60%{transform:translateX(-3px)} 80%{transform:translateX(3px)} }
+  .line-svg { position: absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:20; }
+  .match-line { stroke: #ffe066; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; fill: none; filter: drop-shadow(0 0 4px #ffd000); stroke-dasharray: 2000; stroke-dashoffset: 2000; animation: drawLine 0.3s ease forwards; }
+  @keyframes drawLine { to { stroke-dashoffset: 0; } }
+  .legend { display: flex; gap: 12px; margin-top: 10px; font-size: 10px; font-weight: 700; color: #7a8acc; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 4px; vertical-align: middle; }
+  .overlay { position: absolute; inset: 0; background: rgba(30,40,100,0.75); display: flex; align-items: center; justify-content: center; z-index: 50; border-radius: 32px; }
+  .overlay-box { background: white; border-radius: 16px; padding: 24px 28px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.3); width: 260px; }
+  .overlay-box h2 { font-size: 22px; font-weight: 900; color: #2d3a8c; margin-bottom: 6px; }
+  .overlay-box p { font-size: 13px; color: #666; margin-bottom: 16px; }
+  .overlay-box .btn { font-size: 13px; padding: 8px 24px; }
+  .toast { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); background: rgba(45,58,140,0.92); color: white; padding: 10px 20px; border-radius: 12px; font-size: 12px; font-weight: 800; z-index: 60; white-space: nowrap; }
+  .tutorial-overlay { position: absolute; inset: 0; background: rgba(15,20,60,0.82); display: flex; align-items: flex-end; z-index: 80; border-radius: 32px; backdrop-filter: blur(2px); }
+  .tutorial-card { width: 100%; background: white; border-radius: 24px 24px 32px 32px; padding: 20px 20px 24px; animation: slideUp 0.4s cubic-bezier(.22,.68,0,1.2) forwards; }
+  @keyframes slideUp { from{transform:translateY(100%);opacity:0} to{transform:translateY(0);opacity:1} }
+  .tut-header { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+  .tut-icon { font-size: 22px; }
+  .tut-title { font-size: 16px; font-weight: 900; color: #2d3a8c; }
+  .tut-rules { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+  .tut-rule { display: flex; align-items: flex-start; gap: 10px; }
+  .tut-rule-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+  .tut-rule-text { font-size: 12px; font-weight: 700; color: #444; line-height: 1.5; }
+  .tut-rule-text strong { color: #2d3a8c; }
+  .tut-color-row { display: flex; gap: 8px; margin-bottom: 14px; }
+  .tut-color-chip { flex: 1; border-radius: 10px; padding: 7px 8px; display: flex; align-items: center; gap: 6px; }
+  .tut-color-chip.en { background: #e8f0ff; }
+  .tut-color-chip.zh { background: #fff3e0; }
+  .tut-chip-dot { width: 14px; height: 14px; border-radius: 4px; flex-shrink: 0; }
+  .tut-chip-text { font-size: 11px; font-weight: 800; color: #444; line-height: 1.3; }
+  .tut-path-rules { display: flex; gap: 8px; }
+  .tut-path-item { flex: 1; background: #f8f0ff; border-radius: 10px; padding: 8px 6px; text-align: center; }
+  .tut-path-item.bad { background: #fff0f0; }
+  .tut-path-emoji { font-size: 18px; margin-bottom: 3px; }
+  .tut-path-text { font-size: 10px; font-weight: 800; color: #555; line-height: 1.4; }
+  .tut-btn { width: 100%; padding: 12px; background: #4a90e2; color: white; border: none; border-radius: 12px; font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 900; cursor: pointer; box-shadow: 0 4px 0 #2a5f9e; transition: transform 0.1s, box-shadow 0.1s; margin-top: 16px; }
+  .tut-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #2a5f9e; }
+  .first-connect-hint { position: absolute; inset: 0; pointer-events: none; z-index: 70; border-radius: 32px; display: none; }
+  .first-connect-bubble { position: absolute; background: #2d3a8c; color: white; font-size: 11px; font-weight: 800; border-radius: 10px; padding: 7px 12px; white-space: nowrap; box-shadow: 0 4px 16px rgba(0,0,0,0.3); animation: bubblePop 0.35s cubic-bezier(.22,.68,0,1.3) forwards; }
+  .first-connect-bubble::after { content: ''; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); border: 6px solid transparent; border-top-color: #2d3a8c; border-bottom: none; }
+  @keyframes bubblePop { from{transform:scale(0.7);opacity:0} to{transform:scale(1);opacity:1} }
+</style>
+</head>
+<body>
+<div class="phone-shell">
+  <div class="phone-notch"></div>
+  <div class="phone-screen">
+    <div class="game-root">
+      <div class="top-bar">
+        <div class="game-title">🔗 单词消消看</div>
+        <div class="top-right">
+          <div class="timer" id="timer">00:00</div>
+          <button class="mute-btn" id="mute-btn" onclick="toggleMute()" title="静音">🔊</button>
+        </div>
+      </div>
+      <div class="mode-hint">🔤 找出单词和它的中文意思，连一连！</div>
+      <div class="action-bar">
+        <button class="btn btn-hint" onclick="showHint()">💡 提示</button>
+        <button class="btn btn-shuffle" onclick="shuffleBoard()">🔀 刷新</button>
+        <button class="btn btn-restart" onclick="initGame()">↺ 重开</button>
+        <div class="pairs-left" id="pairs-left">剩余：10 对</div>
+      </div>
+      <div class="board-wrap">
+        <svg class="line-svg" id="line-svg"></svg>
+        <div class="board" id="board"></div>
+      </div>
+      <div class="legend">
+        <span><span class="legend-dot" style="background:#4a90e2"></span>英文单词</span>
+        <span><span class="legend-dot" style="background:#ff8c42"></span>中文释义</span>
+      </div>
+      <div class="overlay" id="win-overlay" style="display:none">
+        <div class="overlay-box">
+          <h2>🎉 太棒了！</h2>
+          <p id="win-msg">你清空了棋盘！</p>
+          <button class="btn btn-restart" onclick="initGame();document.getElementById('win-overlay').style.display='none'">再来一局</button>
+        </div>
+      </div>
+      <div class="tutorial-overlay" id="tutorial-overlay">
+        <div class="tutorial-card">
+          <div class="tut-header"><div class="tut-icon">🎮</div><div class="tut-title">怎么玩？</div></div>
+          <div class="tut-rules">
+            <div class="tut-rule">
+              <div class="tut-rule-icon" style="background:#e8f0ff">👆</div>
+              <div class="tut-rule-text">点任意一张卡，再点<strong>与它对应</strong>的那张，配对成功即可消除。<strong>点击顺序不限</strong>。</div>
+            </div>
+            <div class="tut-rule">
+              <div class="tut-rule-icon" style="background:#fff3e0">🔗</div>
+              <div class="tut-rule-text">两张卡之间必须能用折线连通，最多转 <strong>2 次弯</strong>，路上不能有其他卡挡路。</div>
+            </div>
+          </div>
+          <div class="tut-color-row">
+            <div class="tut-color-chip en"><div class="tut-chip-dot" style="background:#4a90e2"></div><div class="tut-chip-text"><strong>蓝色</strong><br>英文单词</div></div>
+            <div class="tut-color-chip zh"><div class="tut-chip-dot" style="background:#ff8c42"></div><div class="tut-chip-text"><strong>橙色</strong><br>中文释义</div></div>
+          </div>
+          <div class="tut-path-rules">
+            <div class="tut-path-item"><div class="tut-path-emoji">↗️</div><div class="tut-path-text">转弯 ≤ 2 次<br><strong style="color:#4a90e2">可以连</strong></div></div>
+            <div class="tut-path-item bad"><div class="tut-path-emoji">🧱</div><div class="tut-path-text">路上有卡挡住<br><strong style="color:#e53935">不能连</strong></div></div>
+            <div class="tut-path-item bad"><div class="tut-path-emoji">↩️</div><div class="tut-path-text">转弯超过 2 次<br><strong style="color:#e53935">不能连</strong></div></div>
+          </div>
+          <button class="tut-btn" onclick="closeTutorial()">明白了，开始游戏！</button>
+        </div>
+      </div>
+      <div class="first-connect-hint" id="first-connect-hint"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+// 音效系统（Web Audio API 合成，无需外部文件）
+// ══════════════════════════════════════════════
+let audioCtx = null;
+let muted = false;
+let bgGainNode = null;
+let bgOscillators = [];
+
+function getCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function toggleMute() {
+  muted = !muted;
+  document.getElementById('mute-btn').textContent = muted ? '🔇' : '🔊';
+  if (bgGainNode) bgGainNode.gain.setTargetAtTime(muted ? 0 : 0.06, getCtx().currentTime, 0.3);
+}
+
+// 通用：播一个音符
+function playTone(freq, type, gainVal, duration, startDelay=0, fadeOut=true) {
+  if (muted) return;
+  const ctx = getCtx();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, ctx.currentTime + startDelay);
+  gain.gain.setValueAtTime(gainVal, ctx.currentTime + startDelay);
+  if (fadeOut) gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startDelay + duration);
+  osc.start(ctx.currentTime + startDelay);
+  osc.stop(ctx.currentTime + startDelay + duration + 0.01);
+}
+
+// 音效1：点击选中卡片 — 轻快的"叮"
+function sfxSelect() {
+  playTone(880, 'sine', 0.18, 0.08);
+}
+
+// 音效2：取消选中 — 稍低的"叮"
+function sfxDeselect() {
+  playTone(660, 'sine', 0.12, 0.07);
+}
+
+// 音效3：配对成功 — 上升双音
+function sfxMatch() {
+  playTone(523, 'sine', 0.22, 0.12, 0);      // C5
+  playTone(784, 'sine', 0.22, 0.18, 0.1);    // G5
+  playTone(1047,'sine', 0.20, 0.25, 0.22);   // C6
+}
+
+// 音效4：配对失败 — 低沉"嗯"
+function sfxFail() {
+  const ctx = getCtx();
+  if (muted) return;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(220, ctx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(110, ctx.currentTime + 0.15);
+  gain.gain.setValueAtTime(0.15, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+  osc.start(ctx.currentTime);
+  osc.stop(ctx.currentTime + 0.2);
+}
+
+// 音效5：通关 — 欢快的五音上升
+function sfxWin() {
+  const notes = [523, 659, 784, 1047, 1319]; // C5 E5 G5 C6 E6
+  notes.forEach((f, i) => playTone(f, 'sine', 0.25, 0.3, i * 0.1));
+  // 加一层闪光感高频
+  setTimeout(() => playTone(2093, 'sine', 0.12, 0.4), 550);
+}
+
+// 音效6：提示 — 柔和双脉冲
+function sfxHint() {
+  playTone(740, 'sine', 0.15, 0.1, 0);
+  playTone(740, 'sine', 0.15, 0.1, 0.15);
+}
+
+// 音效7：刷新 — 快速琶音下行
+function sfxShuffle() {
+  [880,740,622,523].forEach((f,i) => playTone(f,'triangle',0.12,0.1,i*0.06));
+}
+
+// 背景音乐：简单循环琶音（轻柔，不干扰游戏）
+function startBGM() {
+  if (muted) return;
+  stopBGM();
+  const ctx = getCtx();
+  // 用 ScriptProcessor 模拟循环琶音太重，改用定时触发轻量音符
+  const melody = [523,659,784,659, 698,784,880,784, 523,659,784,659, 440,523,659,523];
+  let idx = 0;
+  function tick() {
+    if (!bgGainNode) return; // 已停止
+    if (!muted) {
+      const f = melody[idx % melody.length];
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.connect(g); g.connect(bgGainNode);
+      osc.type = 'sine';
+      osc.frequency.value = f;
+      g.gain.setValueAtTime(1, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.28);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.3);
+    }
+    idx++;
+    bgTimer = setTimeout(tick, 320);
+  }
+  bgGainNode = ctx.createGain();
+  bgGainNode.gain.value = 0.06;
+  bgGainNode.connect(ctx.destination);
+  tick();
+}
+
+let bgTimer = null;
+function stopBGM() {
+  if (bgTimer) { clearTimeout(bgTimer); bgTimer = null; }
+  if (bgGainNode) { bgGainNode.disconnect(); bgGainNode = null; }
+}
+
+// ══════════════════════════════════════════════
+// 游戏逻辑
+// ══════════════════════════════════════════════
+const WORDS=[
+  {en:'apple',zh:'苹果'},{en:'banana',zh:'香蕉'},
+  {en:'cat',zh:'猫'},{en:'dog',zh:'狗'},
+  {en:'sun',zh:'太阳'},{en:'moon',zh:'月亮'},
+  {en:'fish',zh:'鱼'},{en:'tree',zh:'树'},
+  {en:'book',zh:'书'},{en:'car',zh:'汽车'},
+];
+const COLS=6,ROWS=4,GAP=7;
+let TILE_SIZE,FONT_SIZE;
+let grid=[],selected=null,pairsLeft=10;
+let timerInterval,seconds=0;
+let isFirstMatch=true;
+
+function calcTileSize(){
+  const screen=document.querySelector('.board-wrap').parentElement;
+  const available=screen.offsetWidth-20;
+  TILE_SIZE=Math.floor((available-GAP*(COLS-1))/COLS);
+  FONT_SIZE=TILE_SIZE<56?11:(TILE_SIZE<68?13:15);
+  const board=document.getElementById('board');
+  board.style.gridTemplateColumns=`repeat(${COLS},${TILE_SIZE}px)`;
+  board.style.gridTemplateRows=`repeat(${ROWS},${TILE_SIZE}px)`;
+}
+function shuffle(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;}
+
+function closeTutorial(){
+  const ov=document.getElementById('tutorial-overlay');
+  ov.style.transition='opacity 0.3s';ov.style.opacity='0';
+  setTimeout(()=>{ov.style.display='none';},300);
+  // 引导关闭后启动背景音乐（需用户交互后才能播放）
+  startBGM();
+}
+
+function initGame(){
+  clearInterval(timerInterval);
+  seconds=0;updateTimer();
+  timerInterval=setInterval(()=>{seconds++;updateTimer();},1000);
+  selected=null;pairsLeft=10;isFirstMatch=true;
+  document.getElementById('pairs-left').textContent=`剩余：${pairsLeft} 对`;
+  document.getElementById('win-overlay').style.display='none';
+  let tiles=[];
+  WORDS.forEach((w,i)=>{tiles.push({pairId:i,type:'en',text:w.en});tiles.push({pairId:i,type:'zh',text:w.zh});});
+  shuffle(tiles);
+  let allSlots=Array.from({length:24},(_,i)=>i);shuffle(allSlots);
+  let emptySlots=new Set(allSlots.slice(0,4));
+  let idx=0;grid=[];
+  for(let r=0;r<ROWS;r++){grid[r]=[];for(let c=0;c<COLS;c++){let flat=r*COLS+c;grid[r][c]=emptySlots.has(flat)?null:{...tiles[idx++],r,c,cleared:false,clearing:false};}}
+  if(!hasAnyMove()){initGame();return;}
+  calcTileSize();renderBoard();
+}
+
+function renderBoard(){
+  const board=document.getElementById('board');board.innerHTML='';document.getElementById('line-svg').innerHTML='';
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    const tile=grid[r][c];const el=document.createElement('div');
+    el.style.width=TILE_SIZE+'px';el.style.height=TILE_SIZE+'px';el.style.fontSize=FONT_SIZE+'px';
+    if(!tile||tile.cleared){el.className='tile empty';}
+    else{el.className=`tile ${tile.type}${tile.clearing?' clearing':''}`;el.textContent=tile.text;el.dataset.r=r;el.dataset.c=c;el.addEventListener('click',onTileClick);}
+    board.appendChild(el);
+  }
+}
+
+function getTileEl(r,c){return document.querySelector(`.board .tile[data-r="${r}"][data-c="${c}"]`);}
+
+function onTileClick(e){
+  const r=+e.currentTarget.dataset.r,c=+e.currentTarget.dataset.c;
+  const tile=grid[r][c];
+  if(!tile||tile.cleared||tile.clearing)return;
+  if(selected&&selected.r===r&&selected.c===c){
+    e.currentTarget.classList.remove('selected');selected=null;
+    sfxDeselect();
+    return;
+  }
+  if(!selected){
+    selected={r,c};e.currentTarget.classList.add('selected');
+    sfxSelect();
+    return;
+  }
+  const t1=grid[selected.r][selected.c],t2=tile;
+  if(!t1||t1.clearing){deselectAll();selected={r,c};e.currentTarget.classList.add('selected');sfxSelect();return;}
+  if(t1.pairId===t2.pairId&&t1.type!==t2.type){
+    const path=findPath(selected.r,selected.c,r,c);
+    if(path){sfxMatch();animateMatch(selected.r,selected.c,r,c,path);}
+    else{sfxFail();shakeTiles(selected.r,selected.c,r,c);deselectAll();}
+  }else{sfxFail();shakeTiles(selected.r,selected.c,r,c);deselectAll();}
+}
+
+function deselectAll(){document.querySelectorAll('.tile.selected').forEach(el=>el.classList.remove('selected'));selected=null;}
+function shakeTiles(r1,c1,r2,c2){[getTileEl(r1,c1),getTileEl(r2,c2)].forEach(el=>{if(!el)return;el.classList.remove('shake');void el.offsetWidth;el.classList.add('shake');});}
+
+function animateMatch(r1,c1,r2,c2,path){
+  grid[r1][c1].clearing=true;grid[r2][c2].clearing=true;
+  pairsLeft--;
+  document.getElementById('pairs-left').textContent=`剩余：${pairsLeft} 对`;
+  selected=null;
+  document.querySelectorAll('.tile.selected').forEach(el=>el.classList.remove('selected'));
+  drawMatchLine(path);
+  const el1=getTileEl(r1,c1),el2=getTileEl(r2,c2);
+  if(el1){el1.classList.add('clearing');el1.classList.remove('selected');}
+  if(el2){el2.classList.add('clearing');el2.classList.remove('selected');}
+  if(isFirstMatch){isFirstMatch=false;showFirstMatchBubble(r1,c1,r2,c2);}
+  setTimeout(()=>{
+    if(el1)el1.classList.add('matched-anim');
+    if(el2)el2.classList.add('matched-anim');
+    setTimeout(()=>{
+      grid[r1][c1]=null;grid[r2][c2]=null;
+      document.getElementById('line-svg').innerHTML='';
+      replaceWithEmpty(el1);replaceWithEmpty(el2);
+      if(pairsLeft===0){
+        clearInterval(timerInterval);
+        stopBGM();
+        sfxWin();
+        document.getElementById('win-msg').textContent=`用时 ${formatTime(seconds)}，全部消除！`;
+        document.getElementById('win-overlay').style.display='flex';
+        return;
+      }
+      if(!hasAnyMove())autoShuffle();
+    },380);
+  },300);
+}
+
+function replaceWithEmpty(el){
+  if(!el)return;
+  el.className='tile empty';el.removeAttribute('data-r');el.removeAttribute('data-c');
+  el.textContent='';el.style.width=TILE_SIZE+'px';el.style.height=TILE_SIZE+'px';
+  const clone=el.cloneNode(true);el.parentNode&&el.parentNode.replaceChild(clone,el);
+}
+
+function drawMatchLine(path){
+  const svg=document.getElementById('line-svg');const board=document.getElementById('board');
+  const tileW=TILE_SIZE,tileH=TILE_SIZE,gap=GAP;
+  const boardW=COLS*tileW+(COLS-1)*gap;const offsetX=(board.offsetWidth-boardW)/2;
+  function cc(r,c){return{x:offsetX+c*(tileW+gap)+tileW/2,y:r*(tileH+gap)+tileH/2};}
+  let d='';path.forEach((pt,i)=>{const{x,y}=cc(pt.r,pt.c);d+=(i===0?`M ${x} ${y}`:`L ${x} ${y}`);});
+  const pl=document.createElementNS('http://www.w3.org/2000/svg','path');pl.setAttribute('d',d);pl.setAttribute('class','match-line');svg.appendChild(pl);
+}
+
+function isPassable(r,c){
+  if(r<-1||r>ROWS||c<-1||c>COLS)return false;
+  if(r<0||r>=ROWS||c<0||c>=COLS)return true;
+  const t=grid[r][c];return t===null||t.cleared||t.clearing;
+}
+
+function findPath(r1,c1,r2,c2){
+  const queue=[{r:r1,c:c1,dir:null,turns:0,path:[{r:r1,c:c1}]}];
+  const visited=new Map();const key=(r,c,dir,turns)=>`${r},${c},${dir},${turns}`;
+  while(queue.length){
+    const{r,c,dir,turns,path}=queue.shift();if(turns>2)continue;
+    const k=key(r,c,dir,turns);if(visited.has(k))continue;visited.set(k,true);
+    if(r===r2&&c===c2&&path.length>1)return path;
+    for(const{dr,dc,d}of[{dr:0,dc:1,d:0},{dr:0,dc:-1,d:0},{dr:1,dc:0,d:1},{dr:-1,dc:0,d:1}]){
+      const nr=r+dr,nc=c+dc;const nt=(dir===null||dir===d)?turns:turns+1;if(nt>2)continue;
+      const isT=nr===r2&&nc===c2;if(!isT&&!isPassable(nr,nc))continue;
+      const nk=key(nr,nc,d,nt);if(!visited.has(nk))queue.push({r:nr,c:nc,dir:d,turns:nt,path:[...path,{r:nr,c:nc}]});
+    }
+  }
+  return null;
+}
+
+function hasAnyMove(){
+  for(let r1=0;r1<ROWS;r1++)for(let c1=0;c1<COLS;c1++){
+    const t1=grid[r1][c1];if(!t1||t1.cleared||t1.clearing)continue;
+    for(let r2=0;r2<ROWS;r2++)for(let c2=0;c2<COLS;c2++){
+      if(r1===r2&&c1===c2)continue;const t2=grid[r2][c2];if(!t2||t2.cleared||t2.clearing)continue;
+      if(t1.pairId===t2.pairId&&t1.type!==t2.type&&findPath(r1,c1,r2,c2))return true;
+    }
+  }
+  return false;
+}
+
+function showHint(){
+  sfxHint();
+  for(let r1=0;r1<ROWS;r1++)for(let c1=0;c1<COLS;c1++){
+    const t1=grid[r1][c1];if(!t1||t1.cleared||t1.clearing)continue;
+    for(let r2=0;r2<ROWS;r2++)for(let c2=0;c2<COLS;c2++){
+      if(r1===r2&&c1===c2)continue;const t2=grid[r2][c2];if(!t2||t2.cleared||t2.clearing)continue;
+      if(t1.pairId===t2.pairId&&t1.type!==t2.type&&findPath(r1,c1,r2,c2)){
+        const el1=getTileEl(r1,c1),el2=getTileEl(r2,c2);
+        if(el1){el1.classList.add('hint');setTimeout(()=>el1.classList.remove('hint'),2000);}
+        if(el2){el2.classList.add('hint');setTimeout(()=>el2.classList.remove('hint'),2000);}
+        return;
+      }
+    }
+  }
+}
+
+function shuffleBoard(){
+  sfxShuffle();
+  deselectAll();let rem=[];
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){if(grid[r][c]&&!grid[r][c].cleared&&!grid[r][c].clearing)rem.push({...grid[r][c]});}
+  shuffle(rem);let idx=0;
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){if(grid[r][c]&&!grid[r][c].cleared&&!grid[r][c].clearing)grid[r][c]={...rem[idx++],r,c};}
+  renderBoard();if(!hasAnyMove())shuffleBoard();
+}
+
+function autoShuffle(){
+  const toast=document.createElement('div');toast.className='toast';toast.textContent='没有可消除的路径，自动刷新！';
+  document.querySelector('.game-root').appendChild(toast);
+  setTimeout(()=>{toast.remove();sfxShuffle();shuffleBoard();},1200);
+}
+
+function showFirstMatchBubble(r1,c1,r2,c2){
+  const hint=document.getElementById('first-connect-hint');hint.style.display='block';hint.innerHTML='';
+  const boardWrap=document.querySelector('.board-wrap');
+  const bRect=boardWrap.getBoundingClientRect();const scrRect=document.querySelector('.phone-screen').getBoundingClientRect();
+  const tileW=TILE_SIZE,tileH=TILE_SIZE,gap=GAP;
+  const boardW=COLS*tileW+(COLS-1)*gap;const offsetX=(boardWrap.offsetWidth-boardW)/2;
+  function cc(r,c){return{x:offsetX+c*(tileW+gap)+tileW/2+(bRect.left-scrRect.left),y:r*(tileH+gap)+tileH/2+(bRect.top-scrRect.top)};}
+  const p1=cc(r1,c1),p2=cc(r2,c2);const mx=(p1.x+p2.x)/2,my=Math.min(p1.y,p2.y)-20;
+  const bubble=document.createElement('div');bubble.className='first-connect-bubble';
+  bubble.textContent='🎉 配对成功！继续找下一对';
+  bubble.style.left=(mx-90)+'px';bubble.style.top=(my-38)+'px';
+  hint.appendChild(bubble);
+  setTimeout(()=>{bubble.style.transition='opacity 0.4s';bubble.style.opacity='0';setTimeout(()=>{hint.style.display='none';hint.innerHTML='';},400);},2200);
+}
+
+function updateTimer(){document.getElementById('timer').textContent=formatTime(seconds);}
+function formatTime(s){return`${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`;}
+
+initGame();
+</script>
+</body>
+</html>

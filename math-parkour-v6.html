@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<!--
+  组件名称：口算跑酷游戏 v5
+  用途：跑酷游戏融合口算题目，竖屏手机
+  类型：场景模版  日期：2026-04-09
+  改动：
+    - 课程分三阶段（加/减/乘），阶段内速度递增
+    - 反馈 toast 移入 HUD 行，不遮挡题目
+    - 静态背景离屏预渲染，去掉 shadowBlur，性能优化
+    - 题目气泡跟随角色固定显示，障碍物只显示答案牌
+    - roadOffset 动画让赛道真正向玩家滚动
+-->
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>口算跑酷</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #1a7fd4;
+  display: flex; justify-content: center; align-items: flex-start;
+  min-height: 100vh; overflow: hidden; touch-action: none;
+  font-family: 'Nunito', sans-serif;
+}
+#gw {
+  position: relative; width: 100vw; max-width: 430px;
+  overflow: hidden; background: #1a7fd4;
+}
+canvas { position: absolute; top:0; left:0; width:100%; height:100%; display:block; }
+
+/* ── HUD ── */
+#hud {
+  position: absolute; top:0; left:0; right:0; z-index:20;
+  padding: 10px 14px 0;
+  display: flex; flex-direction: column; gap: 6px;
+}
+#hudRow { display: flex; align-items: center; gap: 8px; }
+#pauseBtn {
+  width: 40px; height: 40px; flex-shrink: 0;
+  background: rgba(255,255,255,0.92);
+  border: none; border-radius: 12px;
+  font-size: 18px; color: #3a7bbf; cursor: pointer;
+  box-shadow: 0 4px 0 rgba(0,0,0,0.15);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .1s;
+}
+#pauseBtn:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,0.15); }
+#progWrap {
+  flex: 1; height: 12px;
+  background: rgba(255,255,255,0.28);
+  border-radius: 20px; overflow: hidden;
+}
+#progBar {
+  height: 100%; width: 0%; border-radius: 20px;
+  background: linear-gradient(90deg,#43e97b,#38f9d7);
+  transition: width .35s ease;
+}
+#score {
+  flex-shrink: 0;
+  background: #ffd54f; border-radius: 14px;
+  padding: 0 12px; height: 40px;
+  display: flex; align-items: center; gap: 4px;
+  font-size: 17px; font-weight: 900; color: #7a4800;
+  box-shadow: 0 4px 0 #c89000;
+  white-space: nowrap;
+}
+
+/* ── 反馈 toast：第二行，紧贴 HUD 下方，不入游戏区 ── */
+#fb {
+  position: absolute; z-index: 30;
+  top: 58px; left: 14px; right: 14px;
+  border-radius: 12px; padding: 5px 14px;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 900;
+  opacity: 0; pointer-events: none;
+  transform: translateY(-6px) scale(.96);
+  transition: opacity .15s, transform .15s;
+}
+#fb.show { opacity:1; transform: translateY(0) scale(1); }
+#fb.ok  { background:rgba(46,204,113,0.92); color:#fff; }
+#fb.bad { background:rgba(231,76,60,0.92);  color:#fff; }
+.fbi { font-size:14px; font-weight:900; flex-shrink:0; }
+
+/* ── 连击 ── */
+#combo {
+  position: absolute; z-index:31;
+  right:14px; top:108px;
+  font-size:19px; font-weight:900;
+  color:#ff9f1c; text-shadow:0 2px 0 #c06000;
+  opacity:0; pointer-events:none;
+  transform: scale(.6) translateY(6px);
+  transition: opacity .18s, transform .22s cubic-bezier(.34,1.56,.64,1);
+}
+#combo.show { opacity:1; transform:scale(1) translateY(0); }
+
+/* 阶段提示 */
+#phaseBadge {
+  position: absolute; z-index:31;
+  left: 14px; top: 108px;
+  background: rgba(255,255,255,0.90); border-radius: 10px;
+  padding: 3px 10px; font-size: 12px; font-weight: 900; color: #3a7bbf;
+  opacity: 0; pointer-events: none;
+  transition: opacity .3s;
+}
+#phaseBadge.show { opacity: 1; }
+
+/* ── Overlays ── */
+.ov {
+  position:absolute; inset:0; z-index:50;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px;
+  background:rgba(20,90,180,0.93); backdrop-filter:blur(14px);
+}
+.ov.hide { display:none; }
+.ov-em  { font-size:72px; line-height:1; }
+.ov-ttl { font-size:32px; font-weight:900; color:#fff; text-align:center; }
+.ov-sub { font-size:14px; font-weight:700; color:rgba(255,255,255,0.80); text-align:center; line-height:1.9; max-width:280px; }
+.ov-sc  { font-size:66px; font-weight:900; color:#ffd54f; text-shadow:0 5px 0 #b88000; }
+.btn-g {
+  background:linear-gradient(180deg,#4cd964 0%,#34c759 100%);
+  border:none; border-radius:18px; padding:14px 48px;
+  font-family:'Nunito',sans-serif; font-size:21px; font-weight:900;
+  color:#fff; cursor:pointer; box-shadow:0 6px 0 #1a8a36; letter-spacing:1px;
+  transition:transform .1s;
+}
+.btn-g:active { transform:translateY(4px); box-shadow:0 2px 0 #1a8a36; }
+.btn-s {
+  background:rgba(255,255,255,0.15); border:2px solid rgba(255,255,255,0.30);
+  border-radius:16px; padding:12px 38px;
+  font-family:'Nunito',sans-serif; font-size:16px; font-weight:900;
+  color:rgba(255,255,255,0.85); cursor:pointer; transition:transform .1s;
+}
+.btn-s:active { transform:translateY(3px); }
+
+/* ── 底部题目栏（固定在游戏区下方） ── */
+#qbar {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 62px;
+  background: #ffffff;
+  border-top: 3px solid #d8e8f4;
+  border-radius: 0 0 0 0;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 20; pointer-events: none;
+}
+#qtext {
+  font-family: 'Nunito', sans-serif;
+  font-size: 26px; font-weight: 900; color: #1a2a3a;
+  letter-spacing: 0.5px;
+}
+#hint { display: none; }
+</style>
+</head>
+<body>
+<div id="gw">
+  <canvas id="gc"></canvas>
+  <div id="hud">
+    <div id="hudRow">
+      <button id="pauseBtn">⏸</button>
+      <div id="progWrap"><div id="progBar"></div></div>
+      <div id="score">⭐ <span id="snum">0</span></div>
+    </div>
+  </div>
+  <div id="fb"><span class="fbi" id="fbi">✓</span><span id="fbt">答对啦！</span></div>
+  <div id="combo">🔥 3连击！</div>
+  <div id="phaseBadge" id="phaseBadge">加法阶段</div>
+  <div id="qbar"><span id="qtext">—</span></div>
+
+  <div class="ov" id="ovStart">
+    <div class="ov-em">🐹</div>
+    <div class="ov-ttl">口算跑酷</div>
+    <div class="ov-sub">三条赛道各有一个答案<br>滑到<strong style="color:#4cd964">正确那条道</strong>冲过去<br>答错就撞墙哦！</div>
+    <button class="btn-g" onclick="startGame()">开始冲刺 🚀</button>
+  </div>
+  <div class="ov hide" id="ovPause">
+    <div class="ov-em">⏸️</div>
+    <div class="ov-ttl">游戏暂停</div>
+    <button class="btn-g" onclick="resumeGame()">继续跑！</button>
+    <button class="btn-s" onclick="restartGame()">重新开始</button>
+  </div>
+  <div class="ov hide" id="ovOver">
+    <div class="ov-em" id="ovEm">💥</div>
+    <div class="ov-ttl" id="ovTtl">撞墙了！</div>
+    <div class="ov-sc"  id="ovSc">0</div>
+    <div class="ov-sub" id="ovSub">答对了 0 题</div>
+    <button class="btn-g" onclick="restartGame()">再冲一次！</button>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────
+// CONFIG
+// ─────────────────────────────────────────
+const CFG = {
+  SWIPE_THR:  36,
+  TOP_UI_H:   58,
+  VANISH_R:   0.02,
+  TOP_RATIO:  0.38,
+  BOT_MARGIN: 0.02,
+  // 课程三阶段，每阶段 5 题，阶段内速度从 SPD_INIT 递增到 SPD_MAX
+  PHASES: [
+    { op:'+', label:'加法冲刺 ➕', count:5, spdInit:2.0, spdMax:4.0 },
+    { op:'-', label:'减法冲刺 ➖', count:5, spdInit:2.5, spdMax:4.8 },
+    { op:'×', label:'乘法冲刺 ✖️', count:5, spdInit:3.0, spdMax:6.0 },
+  ],
+  CHAR_EMOJI: '🐹',
+  SPRITE_RES: 160,
+};
+
+// ─────────────────────────────────────────
+// Emoji 精灵预渲染（离屏 canvas）
+// ─────────────────────────────────────────
+const spriteCanvas = document.createElement('canvas');
+spriteCanvas.width = spriteCanvas.height = CFG.SPRITE_RES;
+const sCtx = spriteCanvas.getContext('2d');
+sCtx.font = `${CFG.SPRITE_RES * 0.82}px serif`;
+sCtx.textAlign = 'center'; sCtx.textBaseline = 'middle';
+sCtx.fillText(CFG.CHAR_EMOJI, CFG.SPRITE_RES/2, CFG.SPRITE_RES/2);
+
+// ─────────────────────────────────────────
+// 背景离屏预渲染（天空 + 山 + 草坡，不随帧重绘）
+// ─────────────────────────────────────────
+const bgCanvas = document.createElement('canvas');
+const bgCtx    = bgCanvas.getContext('2d');
+let bgDirty = true;   // resize 后标记重绘
+
+function renderBg() {
+  bgCanvas.width  = W;
+  bgCanvas.height = H;
+  const bx = bgCtx;
+
+  // 天空
+  const sky = bx.createLinearGradient(0, 0, 0, VY);
+  sky.addColorStop(0,   '#1468c0');
+  sky.addColorStop(0.5, '#3da8e8');
+  sky.addColorStop(1,   '#b8e4fa');
+  bx.fillStyle = sky; bx.fillRect(0, 0, W, VY + 4);
+
+  // 地面（草绿，VY 以下全部）
+  const gnd = bx.createLinearGradient(0, VY, 0, H);
+  gnd.addColorStop(0,    '#52cc28');
+  gnd.addColorStop(0.18, '#78dc40');
+  gnd.addColorStop(0.55, '#a8e060');
+  gnd.addColorStop(1,    '#c8e870');
+  bx.fillStyle = gnd; bx.fillRect(0, VY, W, H - VY);
+
+  // 远山后层（蓝紫剪影）
+  bx.save(); bx.globalAlpha = 0.50;
+  bx.fillStyle = '#5888c8';
+  _drawMountainLayer(bx, [
+    [0,.0],[.05,-.30],[.15,-.52],[.24,-.24],[.32,-.58],
+    [.42,-.34],[.52,-.66],[.62,-.40],[.72,-.55],[.82,-.30],
+    [.92,-.48],[1,-.22],[1,.0]
+  ]);
+  bx.restore();
+
+  // 近山前层（深绿）
+  bx.save(); bx.globalAlpha = 0.80;
+  bx.fillStyle = '#28901a';
+  _drawMountainLayer(bx, [
+    [0,.0],[.07,-.18],[.18,-.38],[.28,-.14],[.38,-.44],
+    [.48,-.20],[.57,-.40],[.67,-.12],[.78,-.34],[.90,-.18],
+    [.96,-.30],[1,-.10],[1,.0]
+  ]);
+  bx.restore();
+
+  // 草坡（bezier 波浪，融合山脚和地面）
+  bx.fillStyle = '#3aaa1e';
+  bx.beginPath();
+  bx.moveTo(0, VY);
+  bx.bezierCurveTo(W*.15, VY-16, W*.38, VY-7,  W*.50, VY-3);
+  bx.bezierCurveTo(W*.64, VY+2,  W*.82, VY-12, W,     VY-5);
+  bx.lineTo(W, VY); bx.lineTo(0, VY); bx.closePath(); bx.fill();
+
+  bx.fillStyle = '#56cc2e';
+  bx.beginPath();
+  bx.moveTo(0, VY);
+  bx.bezierCurveTo(W*.10, VY-8, W*.36, VY-2,  W*.50, VY);
+  bx.bezierCurveTo(W*.66, VY+3, W*.86, VY-5,  W,     VY-1);
+  bx.lineTo(W, VY); bx.lineTo(0, VY); bx.closePath(); bx.fill();
+
+  // 云（静态，画在 bgCanvas）
+  _drawCloud(bx, W*0.08,  VY*0.26, 1.05);
+  _drawCloud(bx, W*0.57,  VY*0.10, 1.30);
+  _drawCloud(bx, W*0.32,  VY*0.60, 0.72);
+
+  bgDirty = false;
+}
+
+function _drawMountainLayer(bx, pts) {
+  bx.beginPath();
+  bx.moveTo(0, VY);
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [x0, y0] = [pts[i][0]*W,   VY + pts[i][1]  * 68];
+    const [x1, y1] = [pts[i+1][0]*W, VY + pts[i+1][1]* 68];
+    bx.quadraticCurveTo(x0, y0, (x0+x1)/2, (y0+y1)/2);
+  }
+  const last = pts[pts.length-1];
+  bx.lineTo(last[0]*W, VY + last[1]*68);
+  bx.lineTo(W, VY); bx.lineTo(0, VY); bx.closePath(); bx.fill();
+}
+
+function _drawCloud(bx, cx, cy, sc) {
+  const r = 20 * sc;
+  const blobs = [
+    [0,0,r],[r*.80,-r*.30,r*.82],[r*1.70,0,r*.92],
+    [r*2.50,-r*.12,r*.72],[r*.90,r*.22,r*.60],[r*1.80,r*.18,r*.55],
+  ];
+  // 底影
+  bx.fillStyle = '#b0d0f0';
+  blobs.forEach(([dx,dy,rd]) => {
+    bx.beginPath(); bx.ellipse(cx+dx, cy+dy+rd*.38, rd*.95, rd*.46, 0, 0, Math.PI*2); bx.fill();
+  });
+  // 主体
+  bx.fillStyle = '#ffffff';
+  blobs.forEach(([dx,dy,rd]) => {
+    bx.beginPath(); bx.arc(cx+dx, cy+dy, rd, 0, Math.PI*2); bx.fill();
+  });
+  // 高光
+  bx.fillStyle = 'rgba(255,255,255,0.55)';
+  [[0,0,r],[r*.80,-r*.30,r*.82],[r*1.70,0,r*.92]].forEach(([dx,dy,rd]) => {
+    bx.beginPath(); bx.ellipse(cx+dx-rd*.18, cy+dy-rd*.28, rd*.50, rd*.36, -.4, 0, Math.PI*2); bx.fill();
+  });
+}
+
+// ─────────────────────────────────────────
+// Canvas 初始化
+// ─────────────────────────────────────────
+const canvas = document.getElementById('gc');
+const ctx    = canvas.getContext('2d');
+let W, H, VY;
+
+function resize() {
+  const wrap = document.getElementById('gw');
+  const vh   = Math.min(window.innerHeight - 80, 820);
+  wrap.style.height = vh + 'px';
+  // canvas 高度留出底部题目栏 62px
+  const canvasH = vh - 62;
+  W = canvas.width  = wrap.clientWidth;
+  H = canvas.height = canvasH;
+  VY = CFG.TOP_UI_H + (H - CFG.TOP_UI_H) * CFG.VANISH_R;
+  bgDirty = true;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ─────────────────────────────────────────
+// 透视坐标系
+// ─────────────────────────────────────────
+function botLeft()  { return W * CFG.BOT_MARGIN; }
+function botRight() { return W * (1 - CFG.BOT_MARGIN); }
+function topLeft()  { return W * (0.5 - CFG.TOP_RATIO/2); }
+function topRight() { return W * (0.5 + CFG.TOP_RATIO/2); }
+function botLaneW() { return (botRight() - botLeft()) / 3; }
+function topLaneW() { return (topRight() - topLeft()) / 3; }
+function laneBottomX(lane) { return botLeft() + botLaneW()*lane + botLaneW()/2; }
+function laneTopX(lane)    { return topLeft() + topLaneW()*lane + topLaneW()/2; }
+
+function perspPt(lane, prog) {
+  const vp = prog * prog;
+  return {
+    x: laneBottomX(lane) + (laneTopX(lane)-laneBottomX(lane))*vp,
+    y: H + (VY-H)*vp, vp,
+  };
+}
+function laneWidthAt(prog) {
+  const vp = prog * prog;
+  return botLaneW() + (topLaneW()-botLaneW())*vp;
+}
+
+// ─────────────────────────────────────────
+// 课程题目生成
+// ─────────────────────────────────────────
+let phaseIdx = 0, phaseAnswered = 0;
+
+function currentPhase() { return CFG.PHASES[Math.min(phaseIdx, CFG.PHASES.length-1)]; }
+function totalQ()       { return CFG.PHASES.reduce((s,p)=>s+p.count,0); }
+
+function genQ() {
+  const ph  = currentPhase();
+  const op  = ph.op;
+  let a, b, ans;
+  if (op==='+') { a=r(5,50);  b=r(5,50);    ans=a+b; }
+  else if(op==='-') { a=r(20,80); b=r(1,a-1); ans=a-b; }
+  else              { a=r(2,9);  b=r(2,9);    ans=a*b; }
+  const ws=new Set();
+  while(ws.size<2){ const d=r(1,13),s=Math.random()>.5?1:-1,w=ans+s*d; if(w!==ans&&w>0)ws.add(w); }
+  const opts=shuffle([ans,...ws]);
+  return {text:`${a} ${op} ${b} = ?`, opts, ans, cLane:opts.indexOf(ans)};
+}
+
+function advanceCurriculum() {
+  phaseAnswered++;
+  const ph = currentPhase();
+  // 阶段内速度线性递增
+  const t = phaseAnswered / ph.count;
+  gs.spd = ph.spdInit + (ph.spdMax - ph.spdInit) * t;
+  gs.spd = Math.min(ph.spdMax, gs.spd);
+
+  if (phaseAnswered >= ph.count && phaseIdx < CFG.PHASES.length - 1) {
+    phaseIdx++;
+    phaseAnswered = 0;
+    gs.spd = CFG.PHASES[phaseIdx].spdInit;  // 新阶段重置速度
+    showPhaseBadge(CFG.PHASES[phaseIdx].label);
+  }
+}
+
+let phaseTimer = null;
+function showPhaseBadge(label) {
+  const el = document.getElementById('phaseBadge');
+  el.textContent = label;
+  el.classList.add('show');
+  clearTimeout(phaseTimer);
+  phaseTimer = setTimeout(()=>el.classList.remove('show'), 2000);
+}
+
+function r(a,b){return Math.floor(Math.random()*(b-a+1))+a;}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+// ─────────────────────────────────────────
+// 景物系统（赛道两侧树/灯）
+// ─────────────────────────────────────────
+const SCENERY_INTERVAL = 0.28;
+let scenery = [];
+
+function initScenery() {
+  scenery = [];
+  for(let i=0; i<8; i++) {
+    const t = 1.0 - i * SCENERY_INTERVAL;
+    if(t < -0.3) break;
+    scenery.push({ type:i%2===0?'tree':'lamp', side:-1, t:clamp(t,-.3,1.0) });
+    scenery.push({ type:i%2===0?'lamp':'tree', side: 1, t:clamp(t,-.3,1.0) });
+  }
+}
+function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
+
+function updateScenery(spd) {
+  const step = spd * 0.5 * 0.0014;
+  for(const s of scenery) s.t += step*(s.t<0.4?1.6:s.t>0.7?0.55:1.0);
+  for(let i=scenery.length-1;i>=0;i--){
+    if(scenery[i].t>1.15) scenery.splice(i,1);
+  }
+  const minT = scenery.length ? Math.min(...scenery.map(s=>s.t)) : 1;
+  if(minT > SCENERY_INTERVAL*0.6) {
+    const last = scenery.length ? scenery[scenery.length-1] : {type:'tree',side:1};
+    const nType = last.type==='tree' ? 'lamp' : 'tree';
+    scenery.push({type:nType,          side:-1, t:0.0});
+    scenery.push({type:nType==='tree'?'lamp':'tree', side:1, t:0.0});
+  }
+}
+
+function sceneryPos(side, t) {
+  const vp = t*t;
+  const trackEdge = side===-1
+    ? botLeft()  + (topLeft() -botLeft()) *vp
+    : botRight() + (topRight()-botRight())*vp;
+  const y = H + (VY-H)*vp;
+  const x = side===-1 ? trackEdge-4 : trackEdge+4;
+  return {x, y, vp, scale:1-vp*0.82};
+}
+
+function drawTree(x, y, scale, side) {
+  const h=90*scale, lw=Math.max(0.8,1.6*scale);
+  const ax=x-(side===-1?10*scale:0), tw=10*scale;
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(ax-tw*.38,y); ctx.lineTo(ax+tw*.38,y);
+  ctx.lineTo(ax+tw*.55,y-h*.32); ctx.lineTo(ax-tw*.55,y-h*.32); ctx.closePath();
+  ctx.fillStyle='#c07840'; ctx.fill(); ctx.strokeStyle='#7a4018'; ctx.lineWidth=lw; ctx.stroke();
+  const layers=[
+    {oy:h*.64,rx:h*.33,ry:h*.27,fill:'#3db83a',shade:'#27821e'},
+    {oy:h*.45,rx:h*.27,ry:h*.22,fill:'#4eca4a',shade:'#27821e'},
+    {oy:h*.27,rx:h*.20,ry:h*.18,fill:'#62dc5c',shade:'#27821e'},
+  ];
+  for(const l of layers) {
+    ctx.beginPath(); ctx.ellipse(ax+2*scale,y-l.oy+3*scale,l.rx*.96,l.ry*.9,0,0,Math.PI*2);
+    ctx.fillStyle='rgba(0,60,0,0.13)'; ctx.fill();
+    ctx.beginPath(); ctx.ellipse(ax,y-l.oy,l.rx,l.ry,0,0,Math.PI*2);
+    ctx.fillStyle=l.fill; ctx.fill(); ctx.strokeStyle=l.shade; ctx.lineWidth=lw; ctx.stroke();
+    ctx.save(); ctx.globalAlpha=0.24; ctx.fillStyle='#fff';
+    ctx.beginPath(); ctx.ellipse(ax-l.rx*.26,y-l.oy-l.ry*.28,l.rx*.40,l.ry*.36,-.35,0,Math.PI*2);
+    ctx.fill(); ctx.restore();
+  }
+  ctx.restore();
+}
+
+function drawLamp(x, y, scale, side) {
+  const h=85*scale, pw=6*scale, lw=Math.max(0.8,1.5*scale);
+  const ax=x-(side===-1?pw*.5:pw*.5), postH=h*.88;
+  ctx.save();
+  const pg=ctx.createLinearGradient(ax-pw,0,ax+pw,0);
+  pg.addColorStop(0,'#8aaabb'); pg.addColorStop(.45,'#ddeef8'); pg.addColorStop(1,'#6a8899');
+  ctx.beginPath();
+  if(ctx.roundRect) ctx.roundRect(ax-pw*.5,y-postH,pw,postH+pw*.3,pw*.45);
+  else ctx.rect(ax-pw*.5,y-postH,pw,postH+pw*.3);
+  ctx.fillStyle=pg; ctx.fill(); ctx.strokeStyle='#3a5a6a'; ctx.lineWidth=lw; ctx.stroke();
+
+  const armL=20*scale, armY=y-postH;
+  const armX0=side===-1?ax-pw*.5-armL:ax+pw*.5;
+  ctx.beginPath();
+  if(ctx.roundRect) ctx.roundRect(armX0,armY-pw*.28,armL+pw*.5,pw*.72,pw*.32);
+  else ctx.rect(armX0,armY-pw*.28,armL,pw*.72);
+  ctx.fillStyle='#9ab8c8'; ctx.fill(); ctx.strokeStyle='#3a5a6a'; ctx.lineWidth=lw; ctx.stroke();
+
+  const lhx=side===-1?ax-pw*.5-armL+pw*.25:ax+pw*.5+armL-pw*.25, lhy=armY, lr=7.5*scale;
+  // 光晕（无 shadowBlur，用径向渐变代替）
+  const grd=ctx.createRadialGradient(lhx,lhy,0,lhx,lhy,lr*4);
+  grd.addColorStop(0,'rgba(255,245,100,0.50)'); grd.addColorStop(.4,'rgba(255,235,60,0.16)'); grd.addColorStop(1,'rgba(255,235,60,0)');
+  ctx.fillStyle=grd; ctx.beginPath(); ctx.arc(lhx,lhy,lr*4,0,Math.PI*2); ctx.fill();
+
+  ctx.beginPath(); ctx.arc(lhx,lhy,lr,0,Math.PI*2);
+  ctx.fillStyle='#fff9a0'; ctx.fill(); ctx.strokeStyle='#c8a000'; ctx.lineWidth=lw; ctx.stroke();
+  ctx.save(); ctx.globalAlpha=0.55; ctx.fillStyle='#fff';
+  ctx.beginPath(); ctx.arc(lhx-lr*.3,lhy-lr*.3,lr*.35,0,Math.PI*2); ctx.fill(); ctx.restore();
+
+  ctx.beginPath(); ctx.ellipse(ax,y-h*.01,pw*2,pw*.62,0,0,Math.PI*2);
+  ctx.fillStyle='#7a9aaa'; ctx.fill(); ctx.strokeStyle='#3a5a6a'; ctx.lineWidth=lw; ctx.stroke();
+  ctx.restore();
+}
+
+function drawScenery() {
+  const sorted=[...scenery].sort((a,b)=>a.t-b.t);
+  for(const s of sorted) {
+    const p=sceneryPos(s.side,s.t);
+    if(p.scale<=0) continue;
+    ctx.save(); ctx.globalAlpha=Math.min(1,p.scale*1.8);
+    if(s.type==='tree') drawTree(p.x,p.y,p.scale,s.side);
+    else                drawLamp(p.x,p.y,p.scale,s.side);
+    ctx.restore();
+  }
+}
+
+// ─────────────────────────────────────────
+// 赛道（路面 + 路缘 + 滚动虚线）
+// ─────────────────────────────────────────
+let roadOffset = 0;   // 0~1 循环，驱动虚线 + 路缘条纹滚动
+
+function drawTrack() {
+  const vy=VY;
+  const bl=botLeft(), br=botRight(), bw=botLaneW();
+  const tl=topLeft(), tr=topRight(), tw=topLaneW();
+
+  // ── 路缘：白+橙滚动条纹（窄带，紧贴赛道边） ──
+  for (const side of [-1,1]) {
+    const be=side===-1?bl:br, te=side===-1?tl:tr;
+    const stripes=8;
+    for(let s=0; s<stripes; s++){
+      // roadOffset 让条纹向近处滚动
+      const raw0=(s+roadOffset)/stripes, raw1=(s+roadOffset+0.45)/stripes;
+      const t0=raw0%1, t1=raw1%1;
+      // 只画完整条纹（跨越 1.0 的折回条跳过）
+      if(t1<t0) continue;
+      const y0=vy+(H-vy)*t0, y1=vy+(H-vy)*t1;
+      const xE0=te+(be-te)*t0, xE1=te+(be-te)*t1;
+      const sw=Math.max(3, 4+(y0-vy)/(H-vy)*18);  // 透视宽度
+      ctx.beginPath();
+      if(side===-1){
+        ctx.moveTo(xE0,y0); ctx.lineTo(xE0-sw,y0);
+        ctx.lineTo(xE1-sw,y1); ctx.lineTo(xE1,y1);
+      } else {
+        ctx.moveTo(xE0,y0); ctx.lineTo(xE0+sw,y0);
+        ctx.lineTo(xE1+sw,y1); ctx.lineTo(xE1,y1);
+      }
+      ctx.closePath();
+      ctx.fillStyle = s%2===0 ? 'rgba(255,255,255,0.92)' : 'rgba(255,140,20,0.88)';
+      ctx.fill();
+    }
+  }
+
+  // ── 赛道主面（深色边先画，主面覆盖中间） ──
+  // 侧边深色（立体感）
+  for(const side of[-1,1]){
+    const be=side===-1?bl:br, te=side===-1?tl:tr;
+    ctx.beginPath(); ctx.moveTo(te,vy); ctx.lineTo(be,H);
+    ctx.strokeStyle='rgba(120,100,70,0.40)'; ctx.lineWidth=2; ctx.stroke();
+  }
+
+  // 主面
+  const grad=ctx.createLinearGradient(0,vy,0,H);
+  grad.addColorStop(0,   '#e4ddd0');
+  grad.addColorStop(0.4, '#ece4d4');
+  grad.addColorStop(1,   '#e8dfc8');
+  ctx.beginPath();
+  ctx.moveTo(tl,vy); ctx.lineTo(tr,vy); ctx.lineTo(br,H); ctx.lineTo(bl,H);
+  ctx.closePath(); ctx.fillStyle=grad; ctx.fill();
+
+  // ── 车道虚线（随 roadOffset 滚动，透视宽度） ──
+  const dashCount=12;
+  for(let i=1; i<=2; i++){
+    const bx_=bl+bw*i, tx_=tl+tw*i;
+    for(let d=0; d<dashCount; d++){
+      const raw=(d+roadOffset)/dashCount;
+      const ta=raw%1, tb=(raw+0.38/dashCount*dashCount)%1;
+      if(tb<ta) continue;
+      const ya=vy+(H-vy)*ta, yb=vy+(H-vy)*tb;
+      const xa=tx_+(bx_-tx_)*ta, xb=tx_+(bx_-tx_)*tb;
+      const dashW=1.2+(ya-vy)/(H-vy)*3.0;
+      ctx.beginPath();
+      ctx.moveTo(xa-dashW/2,ya); ctx.lineTo(xa+dashW/2,ya);
+      ctx.lineTo(xb+dashW/2,yb); ctx.lineTo(xb-dashW/2,yb);
+      ctx.closePath(); ctx.fillStyle='rgba(255,255,255,0.50)'; ctx.fill();
+    }
+  }
+}
+
+// ─────────────────────────────────────────
+// 角色（Emoji + squash/stretch）
+// ─────────────────────────────────────────
+function drawChar(charX) {
+  const prog=0.28, vp=prog*prog;
+  const cy0=H+(VY-H)*vp;
+  const scl=(1-vp*.55)*1.35;
+  const baseSize=72*scl;
+  const t=Date.now()/150;
+  const bob=Math.abs(Math.sin(t));
+  const jumpH=bob*10*scl;
+  const stretchY=1.0+bob*0.15, stretchX=1.0-bob*0.08;
+  const tilt=Math.sin(t)*0.10;
+  const drawW=baseSize*stretchX, drawH=baseSize*stretchY;
+  const cx=charX, cy=cy0-jumpH;
+
+  ctx.save();
+  // 投影
+  const sScale=1.0-bob*0.45;
+  ctx.globalAlpha=0.15*sScale; ctx.fillStyle='#000';
+  ctx.beginPath(); ctx.ellipse(cx,cy0+2*scl,baseSize*.50*sScale,baseSize*.08*sScale,0,0,Math.PI*2); ctx.fill();
+  ctx.globalAlpha=1;
+
+  ctx.translate(cx,cy); ctx.rotate(tilt);
+  ctx.drawImage(spriteCanvas, -drawW/2, -drawH*.82, drawW, drawH);
+  ctx.restore();
+}
+
+// ─────────────────────────────────────────
+// ★ 题目气泡：跟随角色，固定在角色正下方
+// ─────────────────────────────────────────
+function drawQuestion(charX) {
+  if (!gs.q) return;
+  const prog=0.20, vp=prog*prog;
+  const cy0=H+(VY-H)*vp;
+  const scl=(1-vp*.55)*1.35;
+  const baseSize=72*scl;
+
+  const qw=Math.min(200, W*0.55);
+  const qh=36;
+  const qx=charX-qw/2;
+  const qy=cy0+baseSize*.12;   // 角色脚底下方
+
+  ctx.save();
+  // 气泡背景（无 shadow，改用透明描边）
+  ctx.fillStyle='rgba(255,255,255,0.96)';
+  rrect(ctx,qx,qy,qw,qh,qh*.45); ctx.fill();
+  ctx.strokeStyle='rgba(70,140,220,0.55)'; ctx.lineWidth=2;
+  rrect(ctx,qx,qy,qw,qh,qh*.45); ctx.stroke();
+  // 小箭头（气泡尖角朝上，指向角色）
+  ctx.beginPath();
+  ctx.moveTo(charX-8,qy);
+  ctx.lineTo(charX,  qy-10);
+  ctx.lineTo(charX+8,qy);
+  ctx.closePath();
+  ctx.fillStyle='rgba(255,255,255,0.96)'; ctx.fill();
+  ctx.strokeStyle='rgba(70,140,220,0.55)'; ctx.lineWidth=2; ctx.stroke();
+  // 覆盖箭头内部描边接缝
+  ctx.beginPath(); ctx.moveTo(charX-7,qy+1); ctx.lineTo(charX+7,qy+1);
+  ctx.strokeStyle='rgba(255,255,255,0.96)'; ctx.lineWidth=3; ctx.stroke();
+  // 题目文字
+  ctx.fillStyle='#1a2a3a';
+  ctx.font=`900 18px 'Nunito',Arial`;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(gs.q.text, charX, qy+qh/2);
+  ctx.restore();
+}
+
+// ─────────────────────────────────────────
+// 选项板（障碍物，只显示答案，不含题目）
+// ─────────────────────────────────────────
+const TILE_COLORS=[
+  {bg:'#29abe2',sh:'#1478a8'},
+  {bg:'#ff9f1c',sh:'#c06000'},
+  {bg:'#2ecc71',sh:'#1a7a40'},
+];
+const T_OK={bg:'#2ecc71',sh:'#1a7a40'};
+const T_BAD={bg:'#e74c3c',sh:'#8a1010'};
+
+class Obstacle {
+  constructor(q){ this.q=q; this.t=1.0; this.spd=gs.spd; this.state='active'; }
+  get prog(){ return this.t*this.t; }
+  update(){
+    const m=this.t>0.7?0.55:this.t<0.4?1.6:1.0;
+    this.t-=this.spd*m*0.0014;
+  }
+  draw(){
+    const p0=this.prog;
+    for(let lane=0;lane<3;lane++){
+      const p=perspPt(lane,p0);
+      const lw=laneWidthAt(p0);
+      const tw=lw*0.80, th=tw*0.48, rad=th*0.44;
+      let col;
+      if(this.state==='ok'&&lane===this.q.cLane)    col=T_OK;
+      else if(this.state==='bad'&&lane===gs.tLane)  col=T_BAD;
+      else col=TILE_COLORS[lane];
+
+      ctx.save();
+      // 投影（无 shadowBlur）
+      ctx.fillStyle=col.sh;
+      rrect(ctx,p.x-tw/2,p.y-th/2+th*.18,tw,th,rad); ctx.fill();
+      // 主体
+      ctx.fillStyle=col.bg;
+      rrect(ctx,p.x-tw/2,p.y-th/2,tw,th,rad); ctx.fill();
+      // 高光
+      ctx.save(); ctx.globalAlpha=0.32; ctx.fillStyle='#fff';
+      rrect(ctx,p.x-tw*.36,p.y-th*.44,tw*.72,th*.34,rad*.7); ctx.fill();
+      ctx.restore();
+      // 答案数字
+      ctx.fillStyle='#fff';
+      ctx.font=`900 ${Math.max(9,Math.round(tw*.30))}px 'Nunito',Arial`;
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(String(this.q.opts[lane]), p.x, p.y+th*.04);
+      ctx.restore();
+    }
+  }
+}
+
+function rrect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
+}
+
+// ─────────────────────────────────────────
+// 游戏状态 & 主循环
+// ─────────────────────────────────────────
+let gs={
+  state:'start', score:0, combo:0, answered:0, q:null,
+  tLane:1, charX:0, obs:[], spd:CFG.PHASES[0].spdInit,
+  lastObsTime:0, raf:null, pending:false,
+};
+
+function loop(ts){
+  if(gs.state!=='playing') return;
+
+  // 路面滚动速度同步游戏速度
+  roadOffset=(roadOffset+gs.spd*0.0022)%1;
+
+  updateScenery(gs.spd);
+
+  if(gs.obs.length===0 && gs.q && !gs.pending){
+    if(ts-gs.lastObsTime>600){
+      gs.obs.push(new Obstacle(gs.q));
+      gs.lastObsTime=ts;
+    }
+  }
+  gs.pending=false;
+
+  // 背景（离屏 blit，仅在 resize 后重新生成）
+  if(bgDirty) renderBg();
+  ctx.drawImage(bgCanvas, 0, 0);
+
+  drawScenery();
+  drawTrack();
+
+  // 障碍物（答案牌）
+  for(let i=gs.obs.length-1;i>=0;i--){
+    const ob=gs.obs[i];
+    ob.update();
+    if(ob.state==='active'&&ob.t<0.53){
+      if(gs.tLane===ob.q.cLane){ob.state='ok'; doOk();}
+      else{ob.state='bad'; doBad();}
+    }
+    ob.draw();
+    if(ob.t<-0.10) gs.obs.splice(i,1);
+  }
+
+  // 角色
+  const targetX=laneBottomX(gs.tLane);
+  gs.charX+=(targetX-gs.charX)*0.2;
+  drawChar(gs.charX);
+
+  // 更新底部题目栏（DOM，无遮挡）
+  const qtEl = document.getElementById('qtext');
+  if (gs.q && qtEl.textContent !== gs.q.text) qtEl.textContent = gs.q.text;
+
+  gs.raf=requestAnimationFrame(loop);
+}
+
+// ─────────────────────────────────────────
+// 答对 / 答错
+// ─────────────────────────────────────────
+let fbTimer=null, coTimer=null;
+
+function doOk(){
+  gs.answered++; gs.combo++;
+  gs.score+=10*Math.min(gs.combo,5);
+  advanceCurriculum();
+  updateHUD(); showFb(true);
+  gs.q=genQ();
+  document.getElementById('qtext').textContent = gs.q.text;
+  gs.obs=[]; gs.lastObsTime=performance.now(); gs.pending=false;
+  if(gs.answered>=totalQ()) setTimeout(()=>endGame(true),700);
+}
+function doBad(){
+  gs.combo=0; showFb(false);
+  setTimeout(()=>endGame(false),700);
+}
+function showFb(ok){
+  const el=document.getElementById('fb');
+  el.className=ok?'ok':'bad';
+  document.getElementById('fbi').textContent=ok?'✓':'✗';
+  const add=10*Math.min(gs.combo,5);
+  document.getElementById('fbt').textContent=
+    ok ? (gs.combo>=3?`太棒了！+${add}分`:`答对！+${add}分`) : '撞墙了！';
+  clearTimeout(fbTimer); el.classList.add('show');
+  fbTimer=setTimeout(()=>el.classList.remove('show'),900);
+  if(ok&&gs.combo>=3){
+    const co=document.getElementById('combo');
+    co.textContent=`🔥 ${gs.combo}连击！`;
+    clearTimeout(coTimer); co.classList.add('show');
+    coTimer=setTimeout(()=>co.classList.remove('show'),1000);
+  }
+}
+function updateHUD(){
+  document.getElementById('snum').textContent=gs.score;
+  document.getElementById('progBar').style.width=Math.min(100,gs.answered/totalQ()*100)+'%';
+}
+
+// ─────────────────────────────────────────
+// 游戏控制
+// ─────────────────────────────────────────
+function startGame(){
+  hideOvs(); initGs();
+  gs.state='playing'; gs.lastObsTime=performance.now();
+  gs.raf=requestAnimationFrame(loop);
+}
+function restartGame(){ cancelAnimationFrame(gs.raf); startGame(); }
+function resumeGame(){
+  document.getElementById('ovPause').classList.add('hide');
+  gs.state='playing'; gs.raf=requestAnimationFrame(loop);
+}
+function pauseGame(){
+  if(gs.state!=='playing') return;
+  gs.state='paused'; cancelAnimationFrame(gs.raf);
+  document.getElementById('ovPause').classList.remove('hide');
+}
+function endGame(win){
+  gs.state='over'; cancelAnimationFrame(gs.raf);
+  document.getElementById('ovEm').textContent=win?'🎉':'💥';
+  document.getElementById('ovTtl').textContent=win?'冲线成功！':'撞墙了！';
+  document.getElementById('ovSc').textContent=gs.score;
+  document.getElementById('ovSub').textContent=`答对了 ${gs.answered} 题`;
+  document.getElementById('ovOver').classList.remove('hide');
+}
+function initGs(){
+  phaseIdx=0; phaseAnswered=0;
+  Object.assign(gs,{
+    score:0, combo:0, answered:0, tLane:1,
+    charX:laneBottomX(1), obs:[], spd:CFG.PHASES[0].spdInit,
+    lastObsTime:0, pending:false, q:genQ(),
+  });
+  roadOffset=0;
+  initScenery(); updateHUD();
+  document.getElementById('qtext').textContent = gs.q ? gs.q.text : '—';
+  document.getElementById('fb').classList.remove('show');
+  document.getElementById('combo').classList.remove('show');
+  document.getElementById('phaseBadge').classList.remove('show');
+  showPhaseBadge(CFG.PHASES[0].label);
+}
+function hideOvs(){
+  ['ovStart','ovPause','ovOver'].forEach(id=>document.getElementById(id).classList.add('hide'));
+}
+
+// ─────────────────────────────────────────
+// 输入
+// ─────────────────────────────────────────
+document.getElementById('pauseBtn').addEventListener('click',()=>{
+  if(gs.state==='playing') pauseGame();
+  else if(gs.state==='paused') resumeGame();
+});
+document.addEventListener('keydown',e=>{
+  if(gs.state!=='playing') return;
+  if(e.key==='ArrowLeft')  gs.tLane=Math.max(0,gs.tLane-1);
+  if(e.key==='ArrowRight') gs.tLane=Math.min(2,gs.tLane+1);
+});
+let tx=0,ty=0;
+document.addEventListener('touchstart',e=>{tx=e.touches[0].clientX;ty=e.touches[0].clientY;},{passive:true});
+document.addEventListener('touchend',e=>{
+  if(gs.state!=='playing') return;
+  const dx=e.changedTouches[0].clientX-tx, dy=e.changedTouches[0].clientY-ty;
+  if(Math.abs(dx)>Math.abs(dy)&&Math.abs(dx)>CFG.SWIPE_THR)
+    gs.tLane=dx<0?Math.max(0,gs.tLane-1):Math.min(2,gs.tLane+1);
+},{passive:true});
+document.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
+
+gs.charX=laneBottomX(1);
+resize();
+</script>
+</body>
+</html>

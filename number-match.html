@@ -1,0 +1,1775 @@
+<!DOCTYPE html>
+<!--
+  名称: 数字消消看 (Number Match)
+  类型: 场景模版
+  用途: 数字连连看消除游戏Demo，支持模式A（相同数字）和模式B（数字之和）
+  参考来源: 连连看经典机制 + 扁平化教育游戏风格
+  可配置参数:
+    CONFIG.COLS {number} - 棋盘列数，默认8
+    CONFIG.ROWS {number} - 棋盘行数，默认6
+    CONFIG.NUM_MIN {number} - 数字最小值，默认1
+    CONFIG.NUM_MAX {number} - 数字最大值，默认20
+    CONFIG.MODE_B_TARGET {number} - 模式B目标和，默认10
+    CONFIG.HINT_COOLDOWN {number} - 提示按钮冷却时间(ms)，默认2000
+  日期: 2026-04-08
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>数字消消看</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f0f4ff;
+    --panel: #ffffff;
+    --primary: #5b6ef5;
+    --primary-light: #eef0ff;
+    --accent: #ff7043;
+    --success: #43c98e;
+    --warning: #ffb300;
+    --shadow: rgba(91,110,245,0.18);
+    --tile-radius: 10px;
+    /* tile-size和gap由JS动态写入game-root的style，这里只是fallback */
+    --tile-size: 44px;
+    --gap: 6px;
+
+    /* 数字颜色池 */
+    --c1: #5b6ef5; --c1b: #eef0ff;
+    --c2: #e040fb; --c2b: #fce4ff;
+    --c3: #ff7043; --c3b: #fff0ed;
+    --c4: #00bcd4; --c4b: #e0f7fa;
+    --c5: #43c98e; --c5b: #e6fff5;
+    --c6: #ffb300; --c6b: #fff8e1;
+    --c7: #ef5350; --c7b: #ffebee;
+    --c8: #26a69a; --c8b: #e0f2f1;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* ===== 桌面：手机模拟器外框 ===== */
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: #1a1d2e;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-image: radial-gradient(circle at 30% 30%, #2a2d4e 0%, transparent 60%),
+                      radial-gradient(circle at 70% 70%, #2a1d2e 0%, transparent 60%);
+  }
+
+  /* 手机外壳 */
+  .phone-shell {
+    width: 390px;
+    height: 844px;
+    background: #111;
+    border-radius: 52px;
+    box-shadow:
+      0 0 0 2px #333,
+      0 0 0 4px #222,
+      0 30px 80px rgba(0,0,0,0.7);
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  /* 刘海 */
+  .phone-notch {
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 126px;
+    height: 36px;
+    background: #111;
+    border-radius: 0 0 22px 22px;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .phone-notch::before {
+    content: '';
+    width: 12px; height: 12px;
+    background: #222;
+    border-radius: 50%;
+    border: 2px solid #333;
+  }
+  .phone-notch::after {
+    content: '';
+    width: 52px; height: 8px;
+    background: #1a1a1a;
+    border-radius: 4px;
+  }
+
+  /* 侧边按钮 */
+  .phone-btn-right {
+    position: absolute;
+    right: -3px; top: 160px;
+    width: 4px; height: 80px;
+    background: #2a2a2a;
+    border-radius: 2px 0 0 2px;
+    box-shadow: 0 100px 0 #2a2a2a;
+  }
+  .phone-btn-left {
+    position: absolute;
+    left: -3px; top: 120px;
+    width: 4px; height: 44px;
+    background: #2a2a2a;
+    border-radius: 0 2px 2px 0;
+    box-shadow: 0 60px 0 #2a2a2a, 0 120px 0 #2a2a2a;
+  }
+
+  /* 屏幕区域 */
+  .phone-screen {
+    position: absolute;
+    inset: 0;
+    border-radius: 52px;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  /* 游戏内容区，在手机屏幕内滚动 */
+  .game-root {
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 48px 10px 24px; /* 顶部留刘海高度 */
+    background: var(--bg);
+    background-image: radial-gradient(circle at 20% 20%, #dde3ff 0%, transparent 50%),
+                      radial-gradient(circle at 80% 80%, #ffe8e0 0%, transparent 50%);
+    /* 隐藏滚动条 */
+    scrollbar-width: none;
+  }
+  .game-root::-webkit-scrollbar { display: none; }
+
+  /* 移动端直接撑满屏幕，无外壳 */
+  @media (max-width: 430px) {
+    body {
+      background: var(--bg);
+      background-image: radial-gradient(circle at 20% 20%, #dde3ff 0%, transparent 50%),
+                        radial-gradient(circle at 80% 80%, #ffe8e0 0%, transparent 50%);
+    }
+    .phone-shell {
+      width: 100vw;
+      height: 100dvh;
+      border-radius: 0;
+      box-shadow: none;
+      background: transparent;
+    }
+    .phone-screen {
+      border-radius: 0;
+    }
+    .phone-notch { display: none; }
+    .phone-btn-right, .phone-btn-left { display: none; }
+    .game-root {
+      padding-top: 16px;
+    }
+  }
+
+  /* ===== 顶部区域 ===== */
+  .header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+
+  .game-title {
+    font-size: 16px;
+    font-weight: 900;
+    color: var(--primary);
+    letter-spacing: -0.5px;
+  }
+
+  .timer-box {
+    background: var(--panel);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 15px;
+    font-weight: 800;
+    color: #333;
+    box-shadow: 0 2px 8px var(--shadow);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .timer-icon { font-size: 13px; }
+
+  /* ===== 配对条件提示栏 ===== */
+  .condition-bar {
+    width: 100%;
+    background: var(--panel);
+    border-radius: 16px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    box-shadow: 0 4px 16px var(--shadow);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .condition-text {
+    font-size: 14px;
+    font-weight: 800;
+    color: #333;
+    flex: 1;
+  }
+
+  .condition-text span {
+    color: var(--primary);
+    font-size: 16px;
+  }
+
+  .mode-badge {
+    background: var(--primary-light);
+    color: var(--primary);
+    font-size: 11px;
+    font-weight: 800;
+    padding: 3px 10px;
+    border-radius: 30px;
+    white-space: nowrap;
+    letter-spacing: 0.5px;
+  }
+
+  /* ===== 控制栏 ===== */
+  .controls {
+    width: 100%;
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .btn {
+    flex: 1;
+    border: none;
+    border-radius: 10px;
+    padding: 7px 0;
+    font-family: 'Nunito', sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: transform 0.12s, box-shadow 0.12s;
+    box-shadow: 0 3px 0 rgba(0,0,0,0.12);
+  }
+
+  .btn:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,0.12); }
+
+  .btn-hint {
+    background: var(--warning);
+    color: white;
+  }
+
+  .btn-hint:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  .btn-shuffle {
+    background: var(--accent);
+    color: white;
+  }
+
+  .btn-new {
+    background: var(--primary);
+    color: white;
+  }
+
+  .btn-mode {
+    background: var(--panel);
+    color: var(--primary);
+    border: 2px solid var(--primary-light);
+    box-shadow: 0 4px 0 rgba(91,110,245,0.15);
+  }
+
+  /* ===== 棋盘容器 ===== */
+  .board-wrapper {
+    width: 100%;
+    background: var(--panel);
+    border-radius: 18px;
+    padding: 10px;
+    box-shadow: 0 6px 30px var(--shadow);
+    position: relative;
+  }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(var(--cols, 8), var(--tile-size));
+    grid-template-rows: repeat(var(--rows, 6), var(--tile-size));
+    gap: var(--gap);
+    justify-content: center;
+  }
+
+  /* ===== Tile ===== */
+  .tile {
+    width: var(--tile-size);
+    height: var(--tile-size);
+    border-radius: var(--tile-radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--tile-font, 16px);
+    font-weight: 900;
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.12s, box-shadow 0.12s;
+    position: relative;
+    box-shadow: 0 3px 0 rgba(0,0,0,0.10);
+    letter-spacing: -1px;
+  }
+
+  .tile:hover:not(.empty):not(.selected):not(.hint-glow) {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 0 rgba(0,0,0,0.10);
+  }
+
+  .tile.empty {
+    background: transparent;
+    box-shadow: none;
+    cursor: default;
+    pointer-events: none;
+  }
+
+  .tile.selected {
+    transform: scale(1.08) translateY(-3px);
+    box-shadow: 0 0 0 3px var(--primary), 0 8px 24px rgba(91,110,245,0.4);
+    z-index: 2;
+  }
+
+  .tile.hint-glow {
+    animation: hintPulse 0.8s ease-in-out infinite alternate;
+    z-index: 2;
+  }
+
+  @keyframes hintPulse {
+    from { box-shadow: 0 0 0 2px var(--warning), 0 4px 0 rgba(0,0,0,0.10); }
+    to   { box-shadow: 0 0 0 5px var(--warning), 0 8px 28px rgba(255,179,0,0.5); transform: scale(1.06) translateY(-2px); }
+  }
+
+  .tile.removing {
+    animation: removeTile 0.35s ease-in forwards;
+  }
+
+  @keyframes removeTile {
+    0%   { transform: scale(1.1); opacity: 1; }
+    50%  { transform: scale(1.2); opacity: 0.6; }
+    100% { transform: scale(0); opacity: 0; }
+  }
+
+  /* 颜色方案 */
+  .color-1 { background: var(--c1b); color: var(--c1); }
+  .color-2 { background: var(--c2b); color: var(--c2); }
+  .color-3 { background: var(--c3b); color: var(--c3); }
+  .color-4 { background: var(--c4b); color: var(--c4); }
+  .color-5 { background: var(--c5b); color: var(--c5); }
+  .color-6 { background: var(--c6b); color: var(--c6); }
+  .color-7 { background: var(--c7b); color: var(--c7); }
+  .color-8 { background: var(--c8b); color: var(--c8); }
+
+  /* ===== SVG连线overlay ===== */
+  .line-overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 10;
+    border-radius: 24px;
+    overflow: hidden;
+  }
+
+  .connect-line {
+    fill: none;
+    stroke: var(--primary);
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0;
+    stroke-dasharray: 800;
+    stroke-dashoffset: 800;
+    animation: drawLine 0.3s ease-out forwards;
+  }
+
+  @keyframes drawLine {
+    0%   { opacity: 1; stroke-dashoffset: 800; }
+    60%  { opacity: 1; stroke-dashoffset: 0; }
+    100% { opacity: 0; stroke-dashoffset: 0; }
+  }
+
+  /* ===== 状态消息 ===== */
+  .message-bar {
+    width: 100%;
+    margin-top: 10px;
+    min-height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .message {
+    background: var(--panel);
+    border-radius: 30px;
+    padding: 6px 18px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #555;
+    box-shadow: 0 2px 8px var(--shadow);
+    animation: fadeIn 0.3s ease;
+  }
+
+  @keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
+
+  /* ===== 胜利覆层 ===== */
+  .win-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(91,110,245,0.15);
+    backdrop-filter: blur(6px);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* 桌面端限制弹窗在手机壳内 */
+  @media (min-width: 431px) {
+    .win-overlay, .modal-overlay {
+      position: absolute;
+      border-radius: 52px;
+      inset: 0;
+    }
+    .phone-shell {
+      position: relative; /* 让absolute子元素相对于它定位 */
+    }
+  }
+
+  .win-overlay.show { display: flex; }
+
+  .win-card {
+    background: white;
+    border-radius: 24px;
+    padding: 36px 40px;
+    text-align: center;
+    box-shadow: 0 16px 60px rgba(91,110,245,0.3);
+    animation: popIn 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards;
+  }
+
+  @keyframes popIn { from { transform:scale(0.7); opacity:0; } to { transform:scale(1); opacity:1; } }
+
+  .win-emoji { font-size: 48px; margin-bottom: 10px; }
+  .win-title { font-size: 24px; font-weight: 900; color: var(--primary); margin-bottom: 6px; }
+  .win-time { font-size: 14px; color: #888; font-weight: 700; margin-bottom: 20px; }
+  .win-btn {
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 14px;
+    padding: 12px 32px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 15px;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 5px 0 rgba(91,110,245,0.35);
+    transition: transform 0.12s, box-shadow 0.12s;
+  }
+  .win-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 rgba(91,110,245,0.35); }
+
+  /* ===== 模式选择弹窗 ===== */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.25);
+    backdrop-filter: blur(4px);
+    z-index: 50;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal-card {
+    background: white;
+    border-radius: 28px;
+    padding: 32px 36px;
+    width: 320px;
+    box-shadow: 0 16px 60px rgba(0,0,0,0.2);
+    animation: popIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .modal-title { font-size: 20px; font-weight: 900; color: #333; margin-bottom: 20px; text-align: center; }
+  .mode-option {
+    background: var(--primary-light);
+    border: 2px solid transparent;
+    border-radius: 16px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .mode-option:hover { border-color: var(--primary); }
+  .mode-option.active { border-color: var(--primary); background: #e8ebff; }
+  .mode-option-title { font-size: 15px; font-weight: 800; color: var(--primary); }
+  .mode-option-desc { font-size: 13px; color: #666; margin-top: 2px; font-weight: 600; }
+  .mode-option.locked { opacity: 0.45; cursor: not-allowed; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .modal-cancel {
+    flex: 1; padding: 12px; border-radius: 12px; border: 2px solid #eee;
+    background: white; font-family: 'Nunito',sans-serif; font-size: 15px;
+    font-weight: 800; color: #aaa; cursor: pointer;
+  }
+  .modal-confirm {
+    flex: 2; padding: 12px; border-radius: 12px; border: none;
+    background: var(--primary); color: white; font-family: 'Nunito',sans-serif;
+    font-size: 15px; font-weight: 800; cursor: pointer;
+  }
+
+  /* 模式B目标值输入 */
+  .target-input-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+    padding: 10px 16px;
+    background: #f8f9ff;
+    border-radius: 12px;
+  }
+  .target-input-row label { font-size: 14px; font-weight: 700; color: #555; flex: 1; }
+  .target-input-row input {
+    width: 64px;
+    border: 2px solid var(--primary-light);
+    border-radius: 10px;
+    padding: 6px 10px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--primary);
+    text-align: center;
+    outline: none;
+  }
+  .target-input-row input:focus { border-color: var(--primary); }
+
+  #score-display {
+    font-size: 12px;
+    font-weight: 800;
+    color: #555;
+    background: var(--panel);
+    border-radius: 20px;
+    padding: 4px 10px;
+    box-shadow: 0 2px 8px var(--shadow);
+  }
+
+  /* ===== 新手引导 ===== */
+  .guide-overlay {
+    display: none;
+    position: absolute;
+    inset: 0;
+    z-index: 300;
+    border-radius: inherit;
+  }
+  .guide-overlay.show { display: block; }
+
+  /* 半透明遮罩，通过clip-path(evenodd)镂空高亮区域 */
+  .guide-mask {
+    position: absolute;
+    inset: 0;
+    background: rgba(10, 12, 40, 0.75);
+    transition: clip-path 0.35s ease;
+    clip-path: none;
+  }
+
+  /* 高亮框（跟随目标元素） */
+  .guide-highlight {
+    position: absolute;
+    border-radius: 12px;
+    box-shadow: 0 0 0 3px #fff, 0 0 0 6px rgba(91,110,245,0.7);
+    pointer-events: none;
+    transition: all 0.35s cubic-bezier(0.34,1.2,0.64,1);
+    z-index: 302;
+  }
+
+  /* 说明气泡 */
+  .guide-bubble {
+    position: absolute;
+    background: #fff;
+    border-radius: 18px;
+    padding: 16px 18px 14px;
+    width: 240px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.28);
+    z-index: 303;
+    transition: all 0.35s cubic-bezier(0.34,1.2,0.64,1);
+  }
+  .guide-bubble::before {
+    content: '';
+    position: absolute;
+    width: 12px; height: 12px;
+    background: #fff;
+    transform: rotate(45deg);
+  }
+  .guide-bubble.arrow-top::before         { top: -6px; left: 24px; }
+  .guide-bubble.arrow-bottom::before      { bottom: -6px; left: 24px; }
+  .guide-bubble.arrow-top-right::before   { top: -6px; right: 24px; }
+  .guide-bubble.arrow-bottom-right::before{ bottom: -6px; right: 24px; }
+  /* 居中箭头：箭头指向气泡中央 */
+  .guide-bubble.arrow-top-center::before    { top: -6px; left: 50%; transform: translateX(-50%) rotate(45deg); }
+  .guide-bubble.arrow-bottom-center::before { bottom: -6px; left: 50%; transform: translateX(-50%) rotate(45deg); }
+
+  .guide-step-label {
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+  .guide-title {
+    font-size: 14px;
+    font-weight: 900;
+    color: #222;
+    margin-bottom: 6px;
+    line-height: 1.3;
+  }
+  .guide-desc {
+    font-size: 12px;
+    font-weight: 600;
+    color: #666;
+    line-height: 1.5;
+    margin-bottom: 12px;
+  }
+  .guide-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .guide-skip {
+    font-size: 11px;
+    font-weight: 700;
+    color: #bbb;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    font-family: 'Nunito', sans-serif;
+  }
+  .guide-next {
+    flex: 1;
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 8px 0;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+    font-family: 'Nunito', sans-serif;
+    box-shadow: 0 3px 0 rgba(91,110,245,0.35);
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+  .guide-next:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(91,110,245,0.35); }
+
+  .guide-dots {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+    margin-bottom: 10px;
+  }
+  .guide-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: #ddd;
+    transition: background 0.2s, transform 0.2s;
+  }
+  .guide-dot.active {
+    background: var(--primary);
+    transform: scale(1.3);
+  }
+
+  /* 引导用tile高亮（区别于提示的warning色，用主色+弹跳） */
+  .guide-tile-glow {
+    animation: guideTileGlow 0.9s ease-in-out infinite alternate !important;
+    z-index: 3;
+  }
+  @keyframes guideTileGlow {
+    from { box-shadow: 0 0 0 2px #5b6ef5, 0 3px 0 rgba(0,0,0,0.10); transform: scale(1.02); }
+    to   { box-shadow: 0 0 0 6px rgba(91,110,245,0.5), 0 6px 20px rgba(91,110,245,0.4); transform: scale(1.10) translateY(-3px); }
+  }
+
+  /* 引导示意折线动画 */
+  .guide-demo-line {
+    stroke-dashoffset: 0;
+    animation: guideDash 1.2s linear infinite;
+  }
+  @keyframes guideDash {
+    from { stroke-dashoffset: 0; }
+    to   { stroke-dashoffset: -26; }
+  }
+
+  /* 引导高亮框脉冲 */
+  .guide-highlight {
+    animation: hlPulse 1.4s ease-in-out infinite;
+  }
+  @keyframes hlPulse {
+    0%, 100% { box-shadow: 0 0 0 3px #fff, 0 0 0 6px rgba(91,110,245,0.5); }
+    50%       { box-shadow: 0 0 0 3px #fff, 0 0 0 9px rgba(91,110,245,0.25); }
+  }
+
+
+  /* 倒计时扣时红闪 */
+  .timer-penalty {
+    animation: timerPenalty 0.6s ease !important;
+  }
+  @keyframes timerPenalty {
+    0%  { background: #ef5350; transform: scale(1.1); }
+    50% { background: #ef5350; transform: scale(1.05); }
+    100%{ background: var(--panel); transform: scale(1); }
+  }
+
+  /* 倒计时低于30秒闪烁 */
+  #timer.danger {
+    animation: timerDanger 0.8s ease-in-out infinite;
+  }
+  @keyframes timerDanger {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.4; }
+  }
+
+</style>
+</head>
+<body>
+
+<div class="phone-shell">
+  <div class="phone-notch"></div>
+  <div class="phone-btn-right"></div>
+  <div class="phone-btn-left"></div>
+  <div class="phone-screen">
+
+<!-- 新手引导蒙层 -->
+<div class="guide-overlay" id="guide-overlay">
+  <div class="guide-mask" id="guide-mask"></div>
+  <div class="guide-highlight" id="guide-highlight"></div>
+  <div class="guide-bubble" id="guide-bubble">
+    <div class="guide-dots" id="guide-dots"></div>
+    <div class="guide-step-label" id="guide-step-label"></div>
+    <div class="guide-title" id="guide-title"></div>
+    <div class="guide-desc" id="guide-desc"></div>
+    <div class="guide-actions">
+      <button class="guide-skip" onclick="closeGuide()">跳过</button>
+      <button class="guide-next" id="guide-next-btn" onclick="guideNext()">下一步 →</button>
+    </div>
+  </div>
+</div>
+
+<!-- 胜利弹窗（在phone-screen内） -->
+<div class="win-overlay" id="win-overlay">
+  <div class="win-card">
+    <div class="win-emoji">🎉</div>
+    <div class="win-title">恭喜通关！</div>
+    <div class="win-time" id="win-time-text">用时 00:00</div>
+    <button class="win-btn" onclick="closeWin(); startNewGame();">再来一局</button>
+  </div>
+</div>
+
+<!-- 失败弹窗 -->
+<div class="win-overlay" id="lose-overlay">
+  <div class="win-card">
+    <div class="win-emoji">⏰</div>
+    <div class="win-title" style="color:#ef5350;">时间到！</div>
+    <div class="win-time" id="lose-pairs-text">消除了 0 对</div>
+    <button class="win-btn" style="background:#ef5350;box-shadow:0 5px 0 rgba(239,83,80,0.35);" onclick="closeLose(); startNewGame();">再试一次</button>
+  </div>
+</div>
+
+<!-- 模式选择弹窗（在phone-screen内） -->
+<div class="modal-overlay" id="mode-modal">
+  <div class="modal-card">
+    <div class="modal-title">选择配对模式</div>
+    <div class="mode-option active" id="opt-A" onclick="selectMode('A')">
+      <div class="mode-option-title">模式 A — 相同数字</div>
+      <div class="mode-option-desc">找出两个数值相同的tile消除</div>
+    </div>
+    <div class="mode-option" id="opt-B" onclick="selectMode('B')">
+      <div class="mode-option-title">模式 B — 数字之和</div>
+      <div class="mode-option-desc">找出两数之和等于目标值的tile</div>
+    </div>
+    <div class="target-input-row" id="target-row" style="display:none;">
+      <label>目标和：</label>
+      <input type="number" id="target-input" value="10" min="3" max="39">
+    </div>
+    <div class="mode-option locked" id="opt-C">
+      <div class="mode-option-title">模式 C — 数字之差 （即将推出）</div>
+      <div class="mode-option-desc">找出两数之差等于目标值的tile</div>
+    </div>
+    <div class="mode-option locked" id="opt-D">
+      <div class="mode-option-title">模式 D — 倍数关系 （即将推出）</div>
+      <div class="mode-option-desc">找出一数是另一数指定倍数的tile</div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeModeModal()">取消</button>
+      <button class="modal-confirm" onclick="confirmMode()">确定开始</button>
+    </div>
+  </div>
+</div>
+
+  <div class="game-root" id="game-root">
+
+<!-- 顶部 -->
+<div class="header">
+  <div class="game-title">🔢 数字消消看</div>
+  <div style="display:flex;gap:10px;align-items:center;">
+    <div id="score-display">已消除 <span id="pairs-count">0</span> 对</div>
+    <div class="timer-box">
+      <span class="timer-icon">⏱</span>
+      <span id="timer">00:00</span>
+    </div>
+  </div>
+</div>
+
+<!-- 配对条件 -->
+<div class="condition-bar">
+  <div class="condition-text" id="condition-text">找出两个<span>相同</span>的数字</div>
+  <div class="mode-badge" id="mode-badge">模式 A</div>
+</div>
+
+<!-- 控制按钮 -->
+<div class="controls">
+  <button class="btn btn-mode" onclick="openModeModal()">🎯 切换模式</button>
+  <button class="btn btn-hint" id="hint-btn" onclick="showHint()">💡 提示</button>
+  <button class="btn btn-shuffle" onclick="shuffleBoard()">🔀 重排</button>
+  <button class="btn btn-new" onclick="startNewGame()">▶ 新游戏</button>
+</div>
+
+<!-- 棋盘 -->
+<div class="board-wrapper">
+  <svg class="line-overlay" id="line-svg"></svg>
+  <svg class="line-overlay" id="guide-path-svg" style="pointer-events:none;z-index:11;"></svg>
+  <div class="board" id="board"></div>
+</div>
+
+<!-- 消息栏 -->
+<div class="message-bar">
+  <div class="message" id="message-bar">选择两个数字来配对消除</div>
+</div>
+
+<!-- 消息栏结束 -->
+
+</div><!-- /game-root -->
+</div><!-- /phone-screen -->
+</div><!-- /phone-shell -->
+
+<script>
+// ============================================================
+// CONFIG
+// ============================================================
+const CONFIG = {
+  COLS: 8,
+  ROWS: 6,
+  NUM_MIN: 1,
+  NUM_MAX: 20,
+  HINT_COOLDOWN: 2000,
+  GAP: 6,
+  COUNTDOWN_TOTAL: 120,   // 倒计时总秒数
+  PENALTY_SECONDS: 10,    // 点错扣秒
+  PENALTY_FLASH_MS: 600,  // 扣时红闪持续ms
+};
+
+// ============================================================
+// 游戏状态
+// ============================================================
+let state = {
+  mode: 'A',
+  target: 10,
+  grid: [],
+  selected: null,
+  hintPair: null,
+  hintTimeout: null,
+  timerInterval: null,
+  secondsLeft: CONFIG.COUNTDOWN_TOTAL,
+  pairsEliminated: 0,
+  hintCooldown: false,
+  gameActive: false,
+  guideShown: false,
+};
+
+// ============================================================
+// 棋盘生成
+// ============================================================
+function generateGrid(mode, target) {
+  const { COLS, ROWS, NUM_MIN, NUM_MAX } = CONFIG;
+  const total = COLS * ROWS;
+  const pairs = [];
+  const pairCount = total / 2;
+  const validPairs = getAllValidPairs(mode, target, NUM_MIN, NUM_MAX);
+  if (validPairs.length === 0) { alert('该模式下无法生成有效数字对'); return null; }
+  for (let i = 0; i < pairCount; i++) {
+    const p = validPairs[Math.floor(Math.random() * validPairs.length)];
+    pairs.push(p[0], p[1]);
+  }
+  shuffle(pairs);
+  const grid = [];
+  let idx = 0;
+  for (let r = 0; r < ROWS; r++) {
+    grid[r] = [];
+    for (let c = 0; c < COLS; c++) {
+      grid[r][c] = { value: pairs[idx++] };
+    }
+  }
+  return grid;
+}
+
+function getAllValidPairs(mode, target, min, max) {
+  const pairs = [];
+  if (mode === 'A') {
+    for (let n = min; n <= max; n++) pairs.push([n, n]);
+  } else if (mode === 'B') {
+    for (let a = min; a <= max; a++) {
+      const b = target - a;
+      if (b >= min && b <= max && a <= b) pairs.push([a, b]);
+    }
+  }
+  return pairs;
+}
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+}
+
+// ============================================================
+// 连通性检测
+// ============================================================
+function isCellFree(grid, r, c) {
+  const { ROWS, COLS } = CONFIG;
+  if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return true;
+  return grid[r][c] === null;
+}
+
+function isSegClear(grid, r1, c1, r2, c2) {
+  if (r1 === r2) {
+    if (r1 < 0 || r1 >= CONFIG.ROWS) return true;
+    const minC = Math.min(c1, c2), maxC = Math.max(c1, c2);
+    for (let c = Math.max(minC + 1, 0); c <= Math.min(maxC - 1, CONFIG.COLS - 1); c++) {
+      if (grid[r1][c] !== null) return false;
+    }
+    return true;
+  }
+  if (c1 === c2) {
+    if (c1 < 0 || c1 >= CONFIG.COLS) return true;
+    const minR = Math.min(r1, r2), maxR = Math.max(r1, r2);
+    for (let r = Math.max(minR + 1, 0); r <= Math.min(maxR - 1, CONFIG.ROWS - 1); r++) {
+      if (grid[r][c1] !== null) return false;
+    }
+    return true;
+  }
+  return false;
+}
+
+function canConnect(grid, r1, c1, r2, c2) {
+  const { ROWS, COLS } = CONFIG;
+  if (r1 === r2 && c1 === c2) return null;
+  if (r1 === r2 || c1 === c2) {
+    if (isSegClear(grid, r1, c1, r2, c2)) return [[r1,c1],[r2,c2]];
+  }
+  {
+    const kr = r1, kc = c2;
+    if (isCellFree(grid, kr, kc) && isSegClear(grid, r1, c1, kr, kc) && isSegClear(grid, kr, kc, r2, c2))
+      return [[r1,c1],[kr,kc],[r2,c2]];
+  }
+  {
+    const kr = r2, kc = c1;
+    if (isCellFree(grid, kr, kc) && isSegClear(grid, r1, c1, kr, kc) && isSegClear(grid, kr, kc, r2, c2))
+      return [[r1,c1],[kr,kc],[r2,c2]];
+  }
+  for (let r = -1; r <= ROWS; r++) {
+    if (r === r1 || r === r2) continue;
+    if (!isCellFree(grid, r, c1) || !isCellFree(grid, r, c2)) continue;
+    if (isSegClear(grid, r1, c1, r, c1) && isSegClear(grid, r, c1, r, c2) && isSegClear(grid, r, c2, r2, c2))
+      return [[r1,c1],[r,c1],[r,c2],[r2,c2]];
+  }
+  for (let c = -1; c <= COLS; c++) {
+    if (c === c1 || c === c2) continue;
+    if (!isCellFree(grid, r1, c) || !isCellFree(grid, r2, c)) continue;
+    if (isSegClear(grid, r1, c1, r1, c) && isSegClear(grid, r1, c, r2, c) && isSegClear(grid, r2, c, r2, c2))
+      return [[r1,c1],[r1,c],[r2,c],[r2,c2]];
+  }
+  return null;
+}
+
+// ============================================================
+// 配对条件
+// ============================================================
+function isMatch(v1, v2) {
+  if (state.mode === 'A') return v1 === v2;
+  if (state.mode === 'B') return v1 + v2 === state.target;
+  return false;
+}
+
+// ============================================================
+// 查找可消除对
+// ============================================================
+function findAllValidPairs() {
+  const { ROWS, COLS } = CONFIG;
+  const result = [];
+  const cells = [];
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      if (state.grid[r][c] !== null) cells.push([r, c]);
+  for (let i = 0; i < cells.length; i++) {
+    for (let j = i + 1; j < cells.length; j++) {
+      const [r1,c1] = cells[i], [r2,c2] = cells[j];
+      const v1 = state.grid[r1][c1].value;
+      const v2 = state.grid[r2][c2].value;
+      if (isMatch(v1, v2)) {
+        const path = canConnect(state.grid, r1, c1, r2, c2);
+        if (path) result.push({ r1, c1, r2, c2, path });
+      }
+    }
+  }
+  return result;
+}
+
+// ============================================================
+// 渲染
+// ============================================================
+const COLORS = 8;
+function getColorClass(value) { return 'color-' + ((value % COLORS) + 1); }
+
+function renderBoard() {
+  const board = document.getElementById('board');
+  board.style.setProperty('--cols', CONFIG.COLS);
+  board.style.setProperty('--rows', CONFIG.ROWS);
+  board.innerHTML = '';
+  for (let r = 0; r < CONFIG.ROWS; r++) {
+    for (let c = 0; c < CONFIG.COLS; c++) {
+      const cell = state.grid[r][c];
+      const div = document.createElement('div');
+      div.classList.add('tile');
+      if (cell === null) {
+        div.classList.add('empty');
+      } else {
+        div.classList.add(getColorClass(cell.value));
+        div.textContent = cell.value;
+        div.onclick = function() { onTileClick(r, c); };
+      }
+      board.appendChild(div);
+    }
+  }
+}
+
+function getTileEl(r, c) {
+  return document.getElementById('board').children[r * CONFIG.COLS + c];
+}
+
+function updateConditionBar() {
+  const textEl = document.getElementById('condition-text');
+  const badgeEl = document.getElementById('mode-badge');
+  if (state.mode === 'A') {
+    textEl.innerHTML = '找出两个<span>相同</span>的数字';
+    badgeEl.textContent = '模式 A';
+  } else {
+    textEl.innerHTML = '找出两数之<span>和为 ' + state.target + '</span> 的数字';
+    badgeEl.textContent = '模式 B';
+  }
+}
+
+function showMessage(msg, duration) {
+  if (duration === undefined) duration = 2000;
+  const el = document.getElementById('message-bar');
+  el.textContent = msg;
+  el.style.animation = 'none';
+  el.offsetHeight;
+  el.style.animation = 'fadeIn 0.3s ease';
+  if (duration > 0) {
+    clearTimeout(state._msgTimeout);
+    state._msgTimeout = setTimeout(function() {
+      el.textContent = '选择两个数字来配对消除';
+    }, duration);
+  }
+}
+
+// ============================================================
+// 倒计时
+// ============================================================
+function startTimer() {
+  stopTimer();
+  state.secondsLeft = CONFIG.COUNTDOWN_TOTAL;
+  updateTimerDisplay();
+  state.timerInterval = setInterval(function() {
+    state.secondsLeft--;
+    updateTimerDisplay();
+    if (state.secondsLeft <= 0) {
+      state.secondsLeft = 0;
+      updateTimerDisplay();
+      stopTimer();
+      loseGame();
+    }
+  }, 1000);
+}
+
+function stopTimer() { clearInterval(state.timerInterval); }
+
+function updateTimerDisplay() {
+  const s = Math.max(0, state.secondsLeft);
+  const m = Math.floor(s / 60).toString().padStart(2, '0');
+  const sec = (s % 60).toString().padStart(2, '0');
+  const el = document.getElementById('timer');
+  el.textContent = m + ':' + sec;
+  // 低于30秒变红警告+闪烁
+  if (s <= 30) {
+    el.style.color = '#ef5350';
+    el.classList.add('danger');
+  } else {
+    el.style.color = '';
+    el.classList.remove('danger');
+  }
+}
+
+function formatTime(secs) {
+  const m = Math.floor(secs / 60).toString().padStart(2, '0');
+  const sec = (secs % 60).toString().padStart(2, '0');
+  return m + ':' + sec;
+}
+
+// 点错扣时
+function penalizeTime() {
+  SFX.error();
+  state.secondsLeft = Math.max(0, state.secondsLeft - CONFIG.PENALTY_SECONDS);
+  updateTimerDisplay();
+  // 计时器红闪
+  const timerBox = document.querySelector('.timer-box');
+  timerBox.classList.add('timer-penalty');
+  setTimeout(function() { timerBox.classList.remove('timer-penalty'); }, CONFIG.PENALTY_FLASH_MS);
+  showMessage('点错了！扣除 ' + CONFIG.PENALTY_SECONDS + ' 秒');
+  if (state.secondsLeft <= 0) { stopTimer(); loseGame(); }
+}
+
+// ============================================================
+// 连线动画
+// ============================================================
+function animateLine(path, callback) {
+  const svg = document.getElementById('line-svg');
+  svg.innerHTML = '';
+  const wrapper = document.querySelector('.board-wrapper');
+  const wrapperRect = wrapper.getBoundingClientRect();
+  const boardEl = document.getElementById('board');
+  const { ROWS, COLS } = CONFIG;
+
+  function cellCenter(r, c) {
+    const refR = Math.max(0, Math.min(ROWS - 1, r));
+    const refC = Math.max(0, Math.min(COLS - 1, c));
+    const refEl = boardEl.children[refR * COLS + refC];
+    const refRect = refEl.getBoundingClientRect();
+    const refCx = refRect.left - wrapperRect.left + refRect.width / 2;
+    const refCy = refRect.top  - wrapperRect.top  + refRect.height / 2;
+    return {
+      x: refCx + (c - refC) * (refRect.width  + CONFIG.GAP),
+      y: refCy + (r - refR) * (refRect.height + CONFIG.GAP),
+    };
+  }
+
+  const pts = path.map(function(pt) { return cellCenter(pt[0], pt[1]); });
+  const d = pts.map(function(p, i) { return (i === 0 ? 'M' : 'L') + p.x + ',' + p.y; }).join(' ');
+  const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  polyline.setAttribute('d', d);
+  polyline.classList.add('connect-line');
+  svg.appendChild(polyline);
+  setTimeout(function() { svg.innerHTML = ''; if (callback) callback(); }, 400);
+}
+
+// ============================================================
+// 点击处理
+// ============================================================
+function onTileClick(r, c) {
+  if (!state.gameActive) return;
+  if (state.grid[r][c] === null) return;
+  clearHint();
+
+  if (!state.selected) {
+    state.selected = { r: r, c: c };
+    getTileEl(r, c).classList.add('selected');
+    SFX.select();
+    return;
+  }
+
+  const r1 = state.selected.r, c1 = state.selected.c;
+  if (r1 === r && c1 === c) {
+    getTileEl(r1, c1).classList.remove('selected');
+    state.selected = null;
+    return;
+  }
+
+  const v1 = state.grid[r1][c1].value;
+  const v2 = state.grid[r][c].value;
+
+  if (!isMatch(v1, v2)) {
+    // 不匹配：清除第一个，第二个成为新选中
+    getTileEl(r1, c1).classList.remove('selected');
+    state.selected = { r: r, c: c };
+    getTileEl(r, c).classList.add('selected');
+    penalizeTime();
+    return;
+  }
+
+  const path = canConnect(state.grid, r1, c1, r, c);
+  if (!path) {
+    // 路径不通：清除第一个，第二个成为新选中
+    getTileEl(r1, c1).classList.remove('selected');
+    state.selected = { r: r, c: c };
+    getTileEl(r, c).classList.add('selected');
+    penalizeTime();
+    return;
+  }
+
+  // 成功消除：清除两个选中状态
+  getTileEl(r1, c1).classList.remove('selected');
+  state.selected = null;
+  SFX.match();
+  animateLine(path, function() { eliminatePair(r1, c1, r, c); });
+}
+
+function eliminatePair(r1, c1, r2, c2) {
+  getTileEl(r1, c1).classList.add('removing');
+  getTileEl(r2, c2).classList.add('removing');
+  setTimeout(function() {
+    state.grid[r1][c1] = null;
+    state.grid[r2][c2] = null;
+    state.pairsEliminated++;
+    document.getElementById('pairs-count').textContent = state.pairsEliminated;
+    renderBoard();
+    checkGameState();
+  }, 350);
+}
+
+// ============================================================
+// 游戏状态检查
+// ============================================================
+function checkGameState() {
+  const remaining = state.grid.flat().filter(function(c) { return c !== null; });
+  if (remaining.length === 0) { winGame(); return; }
+  if (findAllValidPairs().length === 0) {
+    showMessage('没有可消除的路径，自动重排...', 0);
+    setTimeout(function() { shuffleBoard(true); }, 1200);
+  }
+}
+
+// ============================================================
+// 提示
+// ============================================================
+function showHint() {
+  if (state.hintCooldown || !state.gameActive) return;
+  SFX.hint();
+  clearHint();
+  const pairs = findAllValidPairs();
+  if (pairs.length === 0) { showMessage('当前没有可消除的数字对'); return; }
+  const pick = pairs[Math.floor(Math.random() * pairs.length)];
+  state.hintPair = pick;
+  getTileEl(pick.r1, pick.c1).classList.add('hint-glow');
+  getTileEl(pick.r2, pick.c2).classList.add('hint-glow');
+  state.hintTimeout = setTimeout(clearHint, 3000);
+  state.hintCooldown = true;
+  const btn = document.getElementById('hint-btn');
+  btn.disabled = true;
+  setTimeout(function() { state.hintCooldown = false; btn.disabled = false; }, CONFIG.HINT_COOLDOWN);
+}
+
+function clearHint() {
+  if (state.hintPair) {
+    const el1 = getTileEl(state.hintPair.r1, state.hintPair.c1);
+    const el2 = getTileEl(state.hintPair.r2, state.hintPair.c2);
+    if (el1) el1.classList.remove('hint-glow');
+    if (el2) el2.classList.remove('hint-glow');
+    state.hintPair = null;
+  }
+  clearTimeout(state.hintTimeout);
+}
+
+// ============================================================
+// 重排
+// ============================================================
+function shuffleBoard(auto) {
+  clearHint();
+  const cells = [];
+  for (let r = 0; r < CONFIG.ROWS; r++)
+    for (let c = 0; c < CONFIG.COLS; c++)
+      if (state.grid[r][c] !== null) cells.push(state.grid[r][c]);
+  shuffle(cells);
+  let idx = 0;
+  for (let r = 0; r < CONFIG.ROWS; r++)
+    for (let c = 0; c < CONFIG.COLS; c++)
+      if (state.grid[r][c] !== null) state.grid[r][c] = cells[idx++];
+  renderBoard();
+  if (!auto) showMessage('已重新排列棋盘');
+  let tries = 0;
+  while (findAllValidPairs().length === 0 && tries < 5) {
+    const c2 = [];
+    for (let r = 0; r < CONFIG.ROWS; r++)
+      for (let c = 0; c < CONFIG.COLS; c++)
+        if (state.grid[r][c] !== null) c2.push(state.grid[r][c]);
+    shuffle(c2);
+    let i = 0;
+    for (let r = 0; r < CONFIG.ROWS; r++)
+      for (let c = 0; c < CONFIG.COLS; c++)
+        if (state.grid[r][c] !== null) state.grid[r][c] = c2[i++];
+    tries++;
+  }
+  renderBoard();
+  if (auto) showMessage('已自动重排棋盘，继续加油！');
+}
+
+// ============================================================
+// 胜负
+// ============================================================
+function winGame() {
+  SFX.win();
+  stopTimer();
+  state.gameActive = false;
+  const timeUsed = CONFIG.COUNTDOWN_TOTAL - state.secondsLeft;
+  document.getElementById('win-time-text').textContent = '用时 ' + formatTime(timeUsed) + ' · 剩余 ' + formatTime(state.secondsLeft);
+  document.getElementById('win-overlay').classList.add('show');
+}
+
+function loseGame() {
+  SFX.lose();
+  state.gameActive = false;
+  document.getElementById('lose-pairs-text').textContent = '消除了 ' + state.pairsEliminated + ' 对';
+  document.getElementById('lose-overlay').classList.add('show');
+}
+
+function closeWin() { document.getElementById('win-overlay').classList.remove('show'); }
+function closeLose() { document.getElementById('lose-overlay').classList.remove('show'); }
+
+// ============================================================
+// 新手引导（进入即弹，仅首次）
+// 蒙版方案：用4个绝对定位的半透明div围住镂空区，彻底规避clip-path兼容问题
+// ============================================================
+var guideStep = 0;
+var guideDemoTiles = [];
+var guideDemoPath  = null;
+
+// ── 音效 ──
+var _audioCtx = null;
+function getAudioCtx() {
+  if (!_audioCtx) {
+    try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){}
+  }
+  return _audioCtx;
+}
+
+function playTone(freq, type, duration, volume, delay) {
+  var ctx = getAudioCtx(); if (!ctx) return;
+  delay = delay || 0; volume = volume || 0.18;
+  var osc = ctx.createOscillator();
+  var gain = ctx.createGain();
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.type = type || 'sine';
+  osc.frequency.setValueAtTime(freq, ctx.currentTime + delay);
+  gain.gain.setValueAtTime(volume, ctx.currentTime + delay);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + duration);
+  osc.start(ctx.currentTime + delay);
+  osc.stop(ctx.currentTime + delay + duration);
+}
+
+var SFX = {
+  select: function() {
+    playTone(660, 'sine', 0.12, 0.15);
+  },
+  match: function() {
+    // 上行两音
+    playTone(523, 'sine', 0.12, 0.18, 0);
+    playTone(784, 'sine', 0.18, 0.18, 0.1);
+  },
+  error: function() {
+    playTone(200, 'sawtooth', 0.18, 0.15, 0);
+    playTone(160, 'sawtooth', 0.18, 0.12, 0.1);
+  },
+  win: function() {
+    var notes = [523,659,784,1047];
+    notes.forEach(function(f,i){ playTone(f,'sine',0.22,0.18,i*0.12); });
+  },
+  lose: function() {
+    playTone(330,'sawtooth',0.2,0.18,0);
+    playTone(220,'sawtooth',0.3,0.18,0.18);
+  },
+  hint: function() {
+    playTone(880,'sine',0.1,0.12,0);
+    playTone(1100,'sine',0.1,0.12,0.1);
+  },
+};
+
+// ── 折线示意 ──
+function drawGuidePathSvg(path) {
+  var svg = document.getElementById('guide-path-svg');
+  if (!svg) return;
+  svg.innerHTML = '';
+  if (!path || path.length < 2) return;
+  var wrapper = document.querySelector('.board-wrapper');
+  var wr = wrapper.getBoundingClientRect();
+  var boardEl = document.getElementById('board');
+  var ROWS = CONFIG.ROWS, COLS = CONFIG.COLS;
+  function cc(r, c) {
+    var rr = Math.max(0,Math.min(ROWS-1,r)), rc = Math.max(0,Math.min(COLS-1,c));
+    var re = boardEl.children[rr*COLS+rc].getBoundingClientRect();
+    return {
+      x: (re.left-wr.left+re.width/2)  + (c-rc)*(re.width  + CONFIG.GAP),
+      y: (re.top -wr.top +re.height/2) + (r-rr)*(re.height + CONFIG.GAP),
+    };
+  }
+  var pts = path.map(function(pt){ return cc(pt[0],pt[1]); });
+  var d = pts.map(function(p,i){ return (i===0?'M':'L')+p.x.toFixed(1)+','+p.y.toFixed(1); }).join(' ');
+  var line = document.createElementNS('http://www.w3.org/2000/svg','path');
+  line.setAttribute('d',d); line.setAttribute('fill','none');
+  line.setAttribute('stroke','#5b6ef5'); line.setAttribute('stroke-width','3.5');
+  line.setAttribute('stroke-linecap','round'); line.setAttribute('stroke-linejoin','round');
+  line.setAttribute('stroke-dasharray','9 5'); line.setAttribute('class','guide-demo-line');
+  svg.appendChild(line);
+  pts.forEach(function(p,i){
+    var isEnd = (i===0||i===pts.length-1);
+    var c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('cx',p.x.toFixed(1)); c.setAttribute('cy',p.y.toFixed(1));
+    if(isEnd){ c.setAttribute('r','6'); c.setAttribute('fill','#5b6ef5'); c.setAttribute('opacity','0.9'); }
+    else { c.setAttribute('r','4'); c.setAttribute('fill','none'); c.setAttribute('stroke','#5b6ef5'); c.setAttribute('stroke-width','2.5'); }
+    svg.appendChild(c);
+  });
+}
+
+function clearGuidePathSvg() {
+  var svg = document.getElementById('guide-path-svg');
+  if (svg) svg.innerHTML = '';
+}
+
+function clearGuideTileHighlights() {
+  guideDemoTiles.forEach(function(t){
+    var el = getTileEl(t.r,t.c);
+    if(el) el.classList.remove('guide-tile-glow');
+  });
+  guideDemoTiles = [];
+}
+
+// ── 蒙版：4个div围住一个矩形镂空区（支持多个镂空区叠加） ──
+// 策略：把所有镂空区合并成一个最大外包矩形作为"展示区"，
+// 然后上/下/左/右4个全宽div覆盖展示区外的区域
+// 对于需要同时露出多个不连续区域（如条件栏+两个tile），
+// 改为在蒙版上叠加透明"开窗"div
+function applyMaskHoles(holeDefs, overlayEl) {
+  // 移除旧的开窗
+  var old = overlayEl.querySelectorAll('.guide-hole');
+  old.forEach(function(el){ el.parentNode.removeChild(el); });
+
+  var mask = document.getElementById('guide-mask');
+  // 整体蒙版设为全覆盖（无clip-path）
+  mask.style.clipPath = '';
+  mask.style.background = 'rgba(10,12,40,0.76)';
+
+  // 对每个镂空区，叠加一个透明div（pointer-events:none）
+  // 利用 mix-blend-mode:destination-out 方案也有兼容问题，
+  // 改为：蒙版用 rgba(10,12,40,0.76)，镂空区用 box-shadow 内阴影的伪装
+  // 最简方案：直接在蒙版上 punch hole —— 用 isolation+mix-blend-mode
+  // 最稳方案（最终）：给每个镂空区加一个带白色发光边框的空div，
+  // 并且把蒙版分成多个矩形块拼接绕开镂空区
+
+  // 实现：计算所有镂空区，用 4 块矩形蒙版拼接（只支持单个镂空区时完美）
+  // 多个镂空区时：取所有镂空区的外包矩形作为整体展示区
+  if (holeDefs.length === 0) {
+    mask.style.display = 'block';
+    return;
+  }
+
+  var overlayRect = overlayEl.getBoundingClientRect();
+  var W = overlayEl.offsetWidth, H = overlayEl.offsetHeight;
+
+  // 外包矩形（所有镂空区的并集）
+  var unionL = Infinity, unionT = Infinity, unionR = -Infinity, unionB = -Infinity;
+  holeDefs.forEach(function(h){
+    unionL = Math.min(unionL, h.left);
+    unionT = Math.min(unionT, h.top);
+    unionR = Math.max(unionR, h.right);
+    unionB = Math.max(unionB, h.bottom);
+  });
+  // clamp
+  unionL = Math.max(0, unionL); unionT = Math.max(0, unionT);
+  unionR = Math.min(W, unionR); unionB = Math.min(H, unionB);
+
+  // 隐藏整体蒙版，改用4块拼接
+  mask.style.display = 'none';
+
+  var MASK_BG = 'rgba(10,12,40,0.76)';
+  var pieces = [
+    // 上
+    { top:0,    left:0,    width:W,           height:unionT },
+    // 下
+    { top:unionB, left:0,  width:W,           height:H - unionB },
+    // 左（中间行）
+    { top:unionT, left:0,  width:unionL,      height:unionB - unionT },
+    // 右（中间行）
+    { top:unionT, left:unionR, width:W-unionR, height:unionB - unionT },
+  ];
+
+  pieces.forEach(function(p){
+    if (p.width <= 0 || p.height <= 0) return;
+    var div = document.createElement('div');
+    div.className = 'guide-hole';
+    div.style.cssText = 'position:absolute;background:' + MASK_BG + ';pointer-events:none;z-index:301;'
+      + 'top:' + p.top.toFixed(0) + 'px;left:' + p.left.toFixed(0) + 'px;'
+      + 'width:' + p.width.toFixed(0) + 'px;height:' + p.height.toFixed(0) + 'px;';
+    overlayEl.appendChild(div);
+  });
+
+  // 在镂空区内，对每个单独的hole区域，若不在外包矩形内则补上遮罩
+  // （简化：多个hole时，外包矩形内不被任何hole覆盖的区域暂不处理，已足够清晰）
+}
+
+function toOverlayRect(el, overlayEl, pad) {
+  pad = pad||0;
+  var er = el.getBoundingClientRect();
+  var or = overlayEl.getBoundingClientRect();
+  return { left:er.left-or.left-pad, top:er.top-or.top-pad, right:er.right-or.left+pad, bottom:er.bottom-or.top+pad };
+}
+
+function showGuideOnLoad() {
+  if (state.guideShown) return;
+  state.guideShown = true;
+  state.gameActive = false;
+  guideStep = 0;
+  document.getElementById('guide-overlay').classList.add('show');
+  renderGuideStep(0);
+}
+
+function renderGuideStep(step) {
+  clearGuideTileHighlights();
+  clearGuidePathSvg();
+
+  var dotsEl = document.getElementById('guide-dots');
+  dotsEl.innerHTML = '';
+  for (var i=0;i<3;i++){
+    var dot = document.createElement('div');
+    dot.className = 'guide-dot'+(i===step?' active':'');
+    dotsEl.appendChild(dot);
+  }
+  document.getElementById('guide-next-btn').textContent = step===2 ? '开始游戏！' : '下一步';
+
+  var overlay = document.getElementById('guide-overlay');
+  var bubble  = document.getElementById('guide-bubble');
+  var holes   = [];
+
+  if (step === 0) {
+    document.getElementById('guide-step-label').textContent = '第 1 步 · 配对规则';
+    document.getElementById('guide-title').textContent = '找到两个相同的数字！';
+    document.getElementById('guide-desc').textContent = '顶部条件栏告诉你配对规则。模式A：找两个数值相同的方块，先后点击即可消除。';
+
+    // 镂空：条件栏
+    var barEl = document.querySelector('.condition-bar');
+    if (barEl) holes.push(toOverlayRect(barEl, overlay, 8));
+
+    // 镂空：一对示例tile
+    var pairs = findAllValidPairs();
+    if (pairs.length > 0) {
+      var pick = pairs[Math.floor(Math.random()*pairs.length)];
+      guideDemoTiles = [{r:pick.r1,c:pick.c1},{r:pick.r2,c:pick.c2}];
+      guideDemoPath  = pick.path;
+      guideDemoTiles.forEach(function(t){
+        var el = getTileEl(t.r,t.c);
+        if(el){ el.classList.add('guide-tile-glow'); holes.push(toOverlayRect(el,overlay,10)); }
+      });
+    }
+
+    applyMaskHoles(holes, overlay);
+    setBubblePos(bubble, overlay, 'below-message');
+
+  } else if (step === 1) {
+    document.getElementById('guide-step-label').textContent = '第 2 步 · 路径规则';
+    document.getElementById('guide-title').textContent = '连线最多拐 2 个弯';
+    document.getElementById('guide-desc').textContent = '路径不能穿过其他方块，拐角不超过 2 次。蓝色虚线就是示例路径，还可以绕棋盘外沿走！';
+
+    // 镂空：整个棋盘（加大padding确保折线完整露出）
+    var bw = document.querySelector('.board-wrapper');
+    if (bw) holes.push(toOverlayRect(bw, overlay, 16));
+
+    // 继续高亮tile对
+    guideDemoTiles.forEach(function(t){
+      var el = getTileEl(t.r,t.c);
+      if(el) el.classList.add('guide-tile-glow');
+    });
+
+    applyMaskHoles(holes, overlay);
+    if (guideDemoPath) setTimeout(function(){ drawGuidePathSvg(guideDemoPath); }, 80);
+
+    // 气泡：棋盘上方（条件栏和棋盘之间）
+    setBubblePos(bubble, overlay, 'above-board');
+
+  } else if (step === 2) {
+    document.getElementById('guide-step-label').textContent = '第 3 步 · 辅助工具';
+    document.getElementById('guide-title').textContent = '卡住了？这两个按钮帮你！';
+    document.getElementById('guide-desc').textContent = '💡 提示：高亮一对可消除的数字。🔀 重排：没有路径时重洗牌。点错一次扣 10 秒！';
+
+    var ctrlEl = document.querySelector('.controls');
+    if (ctrlEl) holes.push(toOverlayRect(ctrlEl, overlay, 8));
+
+    applyMaskHoles(holes, overlay);
+    // 气泡：控制栏正下方紧贴
+    setBubblePos(bubble, overlay, 'below-controls');
+  }
+}
+
+function setBubblePos(bubble, overlay, pos) {
+  var or = overlay.getBoundingClientRect();
+  var W = overlay.offsetWidth;
+  var bw = Math.min(268, W-20);
+  bubble.style.width = bw+'px';
+  bubble.style.left  = Math.max(10,(W-bw)/2)+'px';
+  bubble.style.right = bubble.style.bottom = '';
+  bubble.style.transform = '';
+  bubble.className = 'guide-bubble';
+
+  if (pos === 'below-message') {
+    // message-bar 上方（气泡底部对齐 message-bar 顶部 -10px）
+    var msgEl = document.querySelector('.message-bar');
+    if (msgEl) {
+      var msgTop = msgEl.getBoundingClientRect().top - or.top;
+      bubble.style.top = (msgTop - 10) + 'px';
+      bubble.style.transform = 'translateY(-100%)';
+    } else {
+      bubble.style.top = (overlay.offsetHeight - 220)+'px';
+    }
+
+  } else if (pos === 'above-board') {
+    // 条件栏底部 下方 8px
+    var barEl = document.querySelector('.condition-bar');
+    if (barEl) {
+      var barBot = barEl.getBoundingClientRect().bottom - or.top;
+      bubble.style.top = (barBot + 8)+'px';
+    } else {
+      bubble.style.top = '140px';
+    }
+
+  } else if (pos === 'below-controls') {
+    // 控制栏底部 下方 10px
+    var ctrl = document.querySelector('.controls');
+    if (ctrl) {
+      var ctrlBot = ctrl.getBoundingClientRect().bottom - or.top;
+      bubble.style.top = (ctrlBot + 10)+'px';
+    } else {
+      bubble.style.top = '200px';
+    }
+    bubble.className = 'guide-bubble arrow-top-center';
+  }
+}
+
+function guideNext() {
+  guideStep++;
+  if (guideStep >= 3) closeGuide();
+  else renderGuideStep(guideStep);
+}
+
+function closeGuide() {
+  clearGuideTileHighlights();
+  clearGuidePathSvg();
+  // 清理蒙版pieces
+  var overlay = document.getElementById('guide-overlay');
+  overlay.querySelectorAll('.guide-hole').forEach(function(el){ el.parentNode.removeChild(el); });
+  var mask = document.getElementById('guide-mask');
+  if (mask) { mask.style.display='block'; mask.style.clipPath=''; }
+  overlay.classList.remove('show');
+  state.gameActive = true;
+  startTimer();
+}
+
+// ============================================================
+// 新游戏
+// ============================================================
+function startNewGame() {
+  closeWin();
+  closeLose();
+  stopTimer();
+  clearHint();
+  clearGuideTileHighlights();
+  clearGuidePathSvg();
+  document.getElementById('guide-overlay').classList.remove('show');
+  state.selected = null;
+  state.pairsEliminated = 0;
+  state.secondsLeft = CONFIG.COUNTDOWN_TOTAL;
+  document.getElementById('pairs-count').textContent = 0;
+  updateTimerDisplay();
+
+  const grid = generateGrid(state.mode, state.target);
+  if (!grid) return;
+  state.grid = grid;
+  renderBoard();
+  updateConditionBar();
+
+  if (!state.guideShown) {
+    setTimeout(showGuideOnLoad, 300);
+  } else {
+    state.gameActive = true;
+    startTimer();
+    showMessage('倒计时开始！', 1500);
+  }
+}
+
+// ============================================================
+// 模式弹窗
+// ============================================================
+var pendingMode = 'A';
+var pendingTarget = 10;
+
+function openModeModal() {
+  pendingMode = state.mode;
+  document.getElementById('target-input').value = state.target;
+  refreshModeOptions();
+  document.getElementById('mode-modal').classList.add('show');
+}
+function closeModeModal() { document.getElementById('mode-modal').classList.remove('show'); }
+function selectMode(m) {
+  if (m === 'C' || m === 'D') return;
+  pendingMode = m;
+  refreshModeOptions();
+}
+function refreshModeOptions() {
+  ['A','B'].forEach(function(m) {
+    document.getElementById('opt-' + m).classList.toggle('active', pendingMode === m);
+  });
+  document.getElementById('target-row').style.display = pendingMode === 'B' ? 'flex' : 'none';
+}
+function confirmMode() {
+  state.mode = pendingMode;
+  if (pendingMode === 'B') {
+    var v = parseInt(document.getElementById('target-input').value);
+    state.target = isNaN(v) ? 10 : Math.max(3, Math.min(39, v));
+  }
+  closeModeModal();
+  startNewGame();
+}
+
+// ============================================================
+// 动态tile尺寸
+// ============================================================
+function calcTileSize() {
+  const root = document.getElementById('game-root');
+  const availW = root.clientWidth - 20;
+  const GAP = 6;
+  const ts = Math.floor((availW - GAP * (CONFIG.COLS - 1)) / CONFIG.COLS);
+  CONFIG.GAP = GAP;
+  root.style.setProperty('--tile-size', ts + 'px');
+  root.style.setProperty('--gap', GAP + 'px');
+  root.style.setProperty('--tile-font', Math.max(12, Math.floor(ts * 0.38)) + 'px');
+  root.style.setProperty('--tile-radius', Math.max(6, Math.floor(ts * 0.18)) + 'px');
+}
+
+// ============================================================
+// 初始化
+// ============================================================
+document.addEventListener('DOMContentLoaded', function() {
+  state.mode = 'A';
+  state.target = 10;
+  calcTileSize();
+  startNewGame();
+  window.addEventListener('resize', function() { calcTileSize(); renderBoard(); });
+});
+</script>
+</body>
+</html>

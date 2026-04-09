@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Word Sort! 单词接龙纸牌</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&family=Fredoka+One&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F0EEF8; --cp:#6C63FF; --ct:#F7C948;
+  --cw:84px; --ch:60px; --cr:11px; --ov:22px;
+  --sh:0 3px 10px rgba(0,0,0,.13); --shh:0 8px 22px rgba(0,0,0,.22);
+  --header-h:50px; --gap:10px; --pad:14px;
+}
+@media(max-width:600px){
+  :root{ --cw:58px; --ch:46px; --cr:9px; --ov:16px; --gap:6px; --pad:8px; }
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{
+  font-family:'Nunito',sans-serif; background:var(--bg); user-select:none;
+  background-image:radial-gradient(circle at 15% 25%,rgba(108,99,255,.07) 0,transparent 45%),
+    radial-gradient(circle at 85% 75%,rgba(255,107,107,.07) 0,transparent 45%);
+  display:flex; flex-direction:column; height:100dvh;
+}
+
+/* ── HEADER ── */
+header{display:flex;align-items:center;justify-content:space-between;padding:0 var(--pad);height:var(--header-h);background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.08);flex-shrink:0;z-index:200;gap:8px}
+.logo{font-family:'Fredoka One',cursive;font-size:18px;color:var(--cp)}.logo em{color:#FF6B6B;font-style:normal}
+.hstats{display:flex;gap:6px;align-items:center}
+.pill{display:flex;align-items:center;gap:4px;background:#F3F0FF;border-radius:20px;padding:4px 10px;font-weight:800;font-size:12px;color:var(--cp);white-space:nowrap}
+.pill.red{background:#FFF0F0;color:#FF6B6B}
+.btn{background:linear-gradient(135deg,#6C63FF,#8e44ad);color:#fff;border:none;border-radius:20px;padding:6px 14px;font-family:'Nunito',sans-serif;font-weight:800;font-size:12px;cursor:pointer;box-shadow:0 3px 10px rgba(108,99,255,.3);transition:transform .15s;white-space:nowrap}
+.btn:active{transform:scale(.95)}
+.btn-ghost{background:transparent;color:var(--cp);border:2px solid var(--cp);border-radius:20px;padding:4px 10px;font-family:'Nunito',sans-serif;font-weight:800;font-size:12px;cursor:pointer}
+.btn-lg{font-size:15px!important;padding:11px 32px!important}
+
+/* ── SCROLL AREA ── */
+.scroll-area{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding:var(--pad);display:flex;flex-direction:column;gap:var(--gap)}
+@media(max-width:600px){.scroll-area{padding-bottom:140px}}
+
+/* ── DESKTOP TOP ROW ── */
+.top-row{display:flex;gap:var(--gap);align-items:center;flex-wrap:wrap}
+.f-row{display:flex;gap:var(--gap);align-items:flex-start}
+.prog-wrap{display:flex;gap:8px;align-items:center;flex:1;min-width:120px}
+.prog-bar{flex:1;height:8px;background:#E0DBF5;border-radius:6px;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--cp),#FF6B6B);border-radius:6px;transition:width .5s cubic-bezier(.34,1.56,.64,1)}
+.prog-pct{font-family:'Fredoka One',cursive;font-size:12px;color:var(--cp);min-width:28px;text-align:right}
+
+/* ── MOBILE FOUNDATION BAR ── */
+@media(max-width:600px){
+  .top-row{display:none}
+  .mobile-fbar{display:flex!important;position:fixed;bottom:0;left:0;right:0;background:#fff;box-shadow:0 -2px 12px rgba(0,0,0,.12);padding:8px var(--pad) calc(8px + env(safe-area-inset-bottom));z-index:200;flex-direction:column;gap:5px}
+  .mobile-fbar-slots{display:flex;gap:6px;justify-content:center}
+  .mobile-fbar-prog{display:flex;gap:6px;align-items:center;padding:0 4px}
+}
+.mobile-fbar{display:none}
+
+/* ── FOUNDATION SLOTS ── */
+.f-slot{width:var(--cw);min-height:var(--ch);border-radius:var(--cr);border:2.5px dashed rgba(108,99,255,.28);background:rgba(255,255,255,.55);display:flex;flex-direction:column;align-items:center;cursor:pointer;transition:border-color .18s,background .18s,transform .14s;overflow:hidden;flex-shrink:0}
+@media(min-width:601px){.f-slot:hover{transform:scale(1.04)}}
+.f-slot:active{transform:scale(.97)}
+.f-slot.live{border-style:solid}
+.f-slot.drop-hl{background:rgba(108,99,255,.12)!important;border:2.5px solid var(--cp)!important;transform:scale(1.06)!important}
+.f-slot-empty-hint{font-size:9px;font-weight:700;color:rgba(108,99,255,.3);text-align:center;padding:10px 2px 6px;line-height:1.4}
+.f-banner{width:100%;padding:4px 2px 3px;display:flex;flex-direction:column;align-items:center;gap:1px;border-bottom:2px solid transparent}
+.f-banner-emoji{font-size:18px;line-height:1}
+.f-progress{font-family:'Fredoka One',cursive;font-size:10px;color:rgba(255,255,255,.9);background:rgba(0,0,0,.18);border-radius:8px;padding:1px 6px;margin-top:1px}
+.f-chips{display:flex;flex-direction:column;width:100%;padding:2px 3px 3px;gap:2px}
+.f-chip{width:100%;border-radius:4px;padding:1px 3px;font-size:8px;font-weight:800;color:#fff;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;animation:popIn .22s cubic-bezier(.175,.885,.32,1.275) both}
+.f-chip.img-chip{font-size:12px}
+@keyframes popIn{from{transform:scale(.3) rotate(-5deg);opacity:0}to{transform:scale(1);opacity:1}}
+.f-slot.done{opacity:.5;cursor:default;transform:none!important}
+
+/* ── MID / DRAW ── */
+.mid{display:flex;gap:var(--gap);align-items:flex-start}
+.draw-area{display:flex;flex-direction:column;gap:5px;flex-shrink:0;width:calc(var(--cw)*2 + var(--gap))}
+.draw-lbl{font-family:'Fredoka One',cursive;font-size:10px;color:#bbb;letter-spacing:.5px}
+.draw-row{display:flex;gap:var(--gap)}
+.stock{width:var(--cw);height:var(--ch);border-radius:var(--cr);background:linear-gradient(135deg,#6C63FF,#9B59B6);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;box-shadow:3px 3px 0 #4A42CC,var(--sh);transition:transform .15s,box-shadow .15s;position:relative}
+@media(min-width:601px){.stock:hover{transform:translateY(-3px);box-shadow:3px 6px 0 #4A42CC,var(--shh)}}
+.stock:active{transform:translateY(1px)!important;box-shadow:1px 1px 0 #4A42CC!important}
+.stock.empty{opacity:.3;cursor:default;pointer-events:none}
+.stock-n{position:absolute;top:3px;right:4px;background:var(--ct);color:#444;border-radius:10px;padding:1px 5px;font-size:9px;font-weight:900}
+.stock-icon{font-size:20px}
+.waste{width:var(--cw);height:var(--ch);border-radius:var(--cr);border:2.5px dashed rgba(108,99,255,.22);background:rgba(255,255,255,.6);display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0;overflow:visible}
+.waste-hint{font-size:9px;color:#ccc;font-weight:700;text-align:center;line-height:1.4}
+
+/* ── CARDS ── */
+.card{width:var(--cw);height:var(--ch);border-radius:var(--cr);box-shadow:var(--sh);display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;cursor:pointer;transition:transform .15s,box-shadow .15s;background:#fff;border:2.5px solid #E8E4F5;flex-shrink:0;gap:1px}
+@media(min-width:601px){.card:hover{transform:translateY(-4px) scale(1.04);box-shadow:var(--shh);z-index:50}}
+.card:active{transform:scale(.95)!important}
+.card.sel{outline:3px solid var(--cp);outline-offset:2px;transform:translateY(-6px) scale(1.07)!important;box-shadow:0 0 0 5px rgba(108,99,255,.2),var(--shh)!important;z-index:60}
+.card.face-down{background:linear-gradient(135deg,#6C63FF,#9B59B6);cursor:default;border-color:transparent}
+.card.face-down::after{content:'✦';color:rgba(255,255,255,.22);font-size:18px}
+.card.face-down:hover,.card.face-down:active{transform:none!important;box-shadow:var(--sh)!important}
+.card.title-card{background:linear-gradient(135deg,#FFFDE7,#FFF3B0)!important;border-color:var(--ct)!important}
+.card.title-card .cw{color:#9A7A00}
+.card.title-card::before{content:'★';position:absolute;top:2px;right:4px;font-size:9px;color:var(--ct)}
+.cw{font-family:'Fredoka One',cursive;font-size:13px;color:#333;line-height:1;text-align:center;padding:0 3px}
+@media(max-width:600px){.cw{font-size:11px}}
+.card.col-sel-dim{opacity:.5}
+/* NEW badge on card */
+.card .new-badge{position:absolute;top:2px;left:3px;font-size:8px;font-weight:900;color:#fff;background:#FF6B6B;border-radius:6px;padding:1px 4px;line-height:1.3;letter-spacing:.3px}
+
+/* ── TABLEAU ── */
+.tableau{display:flex;gap:var(--gap);align-items:flex-start;flex:1;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
+.col{display:flex;flex-direction:column;width:var(--cw);flex-shrink:0;min-height:var(--ch)}
+.col .card+.card{margin-top:calc(-1*var(--ch) + var(--ov))}
+.col-empty{width:var(--cw);height:var(--ch);border-radius:var(--cr);border:2.5px dashed rgba(108,99,255,.2);background:rgba(255,255,255,.28);cursor:pointer;transition:border-color .18s,background .18s}
+.col-empty.drop-hl{border-color:var(--cp);background:rgba(108,99,255,.07)}
+
+/* ── TOAST ── */
+#toast{position:fixed;top:calc(var(--header-h)+8px);left:50%;transform:translateX(-50%) translateY(-10px);background:#333;color:#fff;padding:8px 18px;border-radius:20px;font-weight:800;font-size:12px;opacity:0;pointer-events:none;transition:all .22s;z-index:999;max-width:90vw;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.ok{background:#1DD1A1}#toast.err{background:#FF6B6B}#toast.warn{background:#FF9F43}#toast.info{background:var(--cp)}
+
+/* ── OVERLAYS ── */
+.overlay{position:fixed;inset:0;background:rgba(20,16,40,.65);display:flex;align-items:center;justify-content:center;z-index:500;opacity:0;pointer-events:none;transition:opacity .28s}
+.overlay.show{opacity:1;pointer-events:all}
+.modal{background:#fff;border-radius:22px;padding:24px 20px;text-align:center;max-width:420px;width:94%;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25);transform:scale(.88);transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
+.overlay.show .modal{transform:scale(1)}
+.m-emoji{font-size:44px;margin-bottom:5px}
+.m-title{font-family:'Fredoka One',cursive;font-size:22px;color:#333;margin-bottom:5px}
+.m-sub{color:#888;font-size:12px;font-weight:600;margin-bottom:14px;line-height:1.5}
+.m-stats{display:flex;gap:7px;justify-content:center;margin-bottom:16px;flex-wrap:wrap}
+.m-stat{background:#F3F0FF;border-radius:12px;padding:7px 12px;font-weight:800;color:var(--cp);font-size:12px}
+.m-stat small{display:block;font-size:9px;color:#aaa;margin-bottom:1px}
+
+/* ── ONBOARDING ── */
+/* Step indicator */
+.ob-steps{display:flex;gap:6px;justify-content:center;margin-bottom:16px}
+.ob-step-dot{width:8px;height:8px;border-radius:50%;background:#E0DBF5;transition:background .3s}
+.ob-step-dot.active{background:var(--cp);width:20px;border-radius:4px}
+
+/* Step 1: category preview */
+.ob-cats{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:14px 0 20px}
+.ob-cat-pill{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 16px;border-radius:16px;
+  background:#F3F0FF;border:2px solid transparent;
+  animation:catReveal .4s cubic-bezier(.34,1.56,.64,1) both;
+}
+@keyframes catReveal{from{transform:scale(.5) translateY(12px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+.ob-cat-emoji{font-size:28px}
+.ob-cat-name{font-family:'Fredoka One',cursive;font-size:15px;color:#333}
+
+/* Step 2: word exposure grid */
+.ob-words-intro{font-size:12px;color:#888;font-weight:600;margin-bottom:12px;line-height:1.5}
+.ob-grid{
+  display:flex;flex-wrap:wrap;gap:10px;
+  justify-content:center;
+  margin:0 0 18px;
+}
+.ob-word-card{
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  background:#fff;border-radius:14px;padding:10px 8px 8px;
+  box-shadow:0 2px 10px rgba(0,0,0,.1);
+  width:76px;position:relative;
+  animation:wordReveal .35s cubic-bezier(.34,1.56,.64,1) both;
+  border:2px solid #F0EEF8;
+}
+@keyframes wordReveal{from{transform:scale(.6) rotate(-4deg);opacity:0}to{transform:scale(1) rotate(0);opacity:1}}
+.ob-word-emoji{font-size:28px;line-height:1}
+.ob-word-en{font-family:'Fredoka One',cursive;font-size:13px;color:#333;text-align:center;line-height:1.2}
+/* NEW badge in onboarding */
+.ob-new-badge{
+  position:absolute;top:-6px;right:-6px;
+  background:#FF6B6B;color:#fff;
+  font-size:9px;font-weight:900;
+  border-radius:8px;padding:2px 5px;
+  letter-spacing:.3px;line-height:1.2;
+  box-shadow:0 2px 6px rgba(255,107,107,.4);
+  animation:newPop .5s cubic-bezier(.34,1.56,.64,1) .2s both;
+}
+@keyframes newPop{from{transform:scale(0) rotate(-15deg)}to{transform:scale(1) rotate(0)}}
+/* NEW legend */
+.ob-legend{display:flex;align-items:center;gap:6px;font-size:11px;color:#888;font-weight:600;margin-bottom:14px;justify-content:center}
+.ob-legend-badge{background:#FF6B6B;color:#fff;font-size:9px;font-weight:900;border-radius:6px;padding:2px 6px}
+
+/* Countdown bar */
+.ob-countdown{height:4px;background:#E0DBF5;border-radius:2px;overflow:hidden;margin-bottom:14px}
+.ob-countdown-fill{height:100%;background:var(--cp);border-radius:2px;transition:width linear}
+
+/* ── RESULTS ── */
+.results-modal{max-width:680px;width:95%;padding:20px 16px;max-height:88vh;overflow-y:auto}
+.results-title{font-family:'Fredoka One',cursive;font-size:20px;color:#333;margin-bottom:3px}
+.results-sub{font-size:12px;color:#888;font-weight:600;margin-bottom:14px}
+.results-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:18px}
+.result-cat{border-radius:12px;overflow:hidden;box-shadow:0 3px 10px rgba(0,0,0,.1)}
+.result-cat-header{padding:7px 10px;display:flex;align-items:center;gap:5px}
+.result-cat-emoji{font-size:18px}.result-cat-name{font-family:'Fredoka One',cursive;font-size:13px;color:#fff}
+.result-words{background:#fff;padding:7px 9px;display:flex;flex-direction:column;gap:3px}
+.result-word{display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid #F0EEF8;font-size:11px}
+.result-word:last-child{border-bottom:none}
+.result-word .rw-emoji{font-size:16px}
+.result-word .rw-en{font-family:'Fredoka One',cursive;font-weight:700;color:#333;flex:1}
+.result-word .rw-zh{color:#aaa;font-size:10px}
+.result-word .rw-new{font-size:8px;font-weight:900;color:#fff;background:#FF6B6B;border-radius:5px;padding:1px 4px;flex-shrink:0}
+
+/* confetti */
+.cp-piece{position:fixed;pointer-events:none;z-index:9999;border-radius:2px;animation:cf linear forwards}
+@keyframes cf{from{transform:translateY(-10px) rotate(0deg);opacity:1}to{transform:translateY(105vh) rotate(720deg);opacity:0}}
+@keyframes rp{0%,100%{background:#FFF0F0}50%{background:#FFD5D5}}
+.pill.red.pulse{animation:rp .4s 3}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Word Sort<em>!</em></div>
+  <div class="hstats">
+    <div class="pill red" id="pill-steps">👟 <span id="val-steps">90</span></div>
+    <div class="pill">⭐ <span id="val-score">0</span></div>
+    <button class="btn-ghost" onclick="showHowToPlay()">？</button>
+    <button class="btn" onclick="startOnboarding()">🔄</button>
+  </div>
+</header>
+
+<div class="scroll-area" id="scroll-area">
+  <div class="top-row">
+    <div class="f-row" id="f-row-desktop"></div>
+    <div style="flex:1;min-width:40px"></div>
+    <div class="prog-wrap" style="max-width:200px">
+      <div class="prog-bar"><div class="prog-fill" id="prog-fill-d" style="width:0%"></div></div>
+      <span class="prog-pct" id="prog-pct-d">0%</span>
+    </div>
+  </div>
+  <div class="mid">
+    <div class="draw-area">
+      <div class="draw-lbl">📦 摸牌堆</div>
+      <div class="draw-row">
+        <div class="stock" id="stock" onclick="clickStock()">
+          <span class="stock-n" id="stock-n">0</span>
+          <span class="stock-icon">🃏</span>
+        </div>
+        <div class="waste" id="waste"><span class="waste-hint">翻牌<br>到这里</span></div>
+      </div>
+    </div>
+    <div class="tableau" id="tableau"></div>
+  </div>
+</div>
+
+<div class="mobile-fbar" id="mobile-fbar">
+  <div class="mobile-fbar-slots"><div class="f-row" id="f-row-mobile"></div></div>
+  <div class="mobile-fbar-prog">
+    <div class="prog-bar"><div class="prog-fill" id="prog-fill-m" style="width:0%"></div></div>
+    <span class="prog-pct" id="prog-pct-m">0%</span>
+  </div>
+</div>
+
+<!-- ── ONBOARDING OVERLAY (steps 1–2) ── -->
+<div class="overlay" id="ob-overlay">
+  <div class="modal" id="ob-modal">
+    <!-- filled by JS -->
+  </div>
+</div>
+
+<!-- ── HOW TO PLAY ── -->
+<div class="overlay" id="how-overlay">
+  <div class="modal">
+    <div class="m-emoji">🃏</div>
+    <div class="m-title">怎么玩？</div>
+    <div style="display:flex;flex-direction:column;gap:9px;text-align:left;margin:12px 0 16px">
+      <div style="display:flex;gap:8px;align-items:flex-start">
+        <div style="width:24px;height:24px;border-radius:50%;background:var(--cp);color:#fff;font-family:'Fredoka One',cursive;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+        <div style="font-size:11px;color:#555;line-height:1.5;font-weight:600">点左边牌堆<b>逐张翻牌</b>。翻到<b style="color:#B8860B">★金边标题卡</b> → 选中 → 点类别格解锁</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-start">
+        <div style="width:24px;height:24px;border-radius:50%;background:var(--cp);color:#fff;font-family:'Fredoka One',cursive;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+        <div style="font-size:11px;color:#555;line-height:1.5;font-weight:600">解锁后，选中同类单词卡 → 点类别格归入。若一列<b>所有明牌同类</b>，点最底张 → 点类别格，<b>整列自动归入！</b></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-start">
+        <div style="width:24px;height:24px;border-radius:50%;background:var(--cp);color:#fff;font-family:'Fredoka One',cursive;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+        <div style="font-size:11px;color:#555;line-height:1.5;font-weight:600">一类<b>收集完毕</b> → 格子清空腾出空位，可收集新类别！共6类，4槽位轮换</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-start">
+        <div style="width:24px;height:24px;border-radius:50%;background:#FF6B6B;color:#fff;font-family:'Fredoka One',cursive;font-size:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0">NEW</div>
+        <div style="font-size:11px;color:#555;line-height:1.5;font-weight:600">红色 <b style="color:#FF6B6B">NEW</b> 角标 = 这局新出现的词，重点记忆！</div>
+      </div>
+    </div>
+    <button class="btn btn-lg" onclick="document.getElementById('how-overlay').classList.remove('show')">知道了！</button>
+  </div>
+</div>
+
+<!-- ── END / RESULTS ── -->
+<div class="overlay" id="end-overlay"><div class="modal results-modal" id="end-modal"></div></div>
+
+<div id="toast"></div>
+
+<script>
+const IS_MOBILE = window.matchMedia('(max-width:600px)').matches;
+
+// ─────────────────────────────────────
+// DATA
+// ─────────────────────────────────────
+const ALL_CATS = {
+  animal:{ label:'Animals', emoji:'🐾', color:'#FF6B6B' },
+  food:  { label:'Food',    emoji:'🍎', color:'#FF9F43' },
+  sport: { label:'Sports',  emoji:'⚽', color:'#48DBFB', dark:true },
+  nature:{ label:'Nature',  emoji:'🌿', color:'#1DD1A1' },
+  body:  { label:'Body',    emoji:'👀', color:'#A29BFE' },
+  color: { label:'Colors',  emoji:'🎨', color:'#FD79A8' },
+};
+
+// isNew: true = 标记为本局新词（小学词表边缘词，非核心词）
+const ALL_WORDS = [
+  // Animals — 2 new
+  { word:'Dog',      zh:'狗',   cat:'animal', emoji:'🐶' },
+  { word:'Cat',      zh:'猫',   cat:'animal', emoji:'🐱' },
+  { word:'Bird',     zh:'鸟',   cat:'animal', emoji:'🐦' },
+  { word:'Fish',     zh:'鱼',   cat:'animal', emoji:'🐟', ambig:['animal','food'] },
+  { word:'Rabbit',   zh:'兔子', cat:'animal', emoji:'🐰', isNew:true },
+  { word:'Tiger',    zh:'老虎', cat:'animal', emoji:'🐯', isNew:true },
+  // Food — 2 new
+  { word:'Apple',    zh:'苹果', cat:'food',   emoji:'🍎' },
+  { word:'Bread',    zh:'面包', cat:'food',   emoji:'🍞' },
+  { word:'Cake',     zh:'蛋糕', cat:'food',   emoji:'🎂' },
+  { word:'Rice',     zh:'米饭', cat:'food',   emoji:'🍚' },
+  { word:'Egg',      zh:'鸡蛋', cat:'food',   emoji:'🥚', ambig:['food','animal'] },
+  { word:'Pizza',    zh:'披萨', cat:'food',   emoji:'🍕', isNew:true },
+  { word:'Grape',    zh:'葡萄', cat:'food',   emoji:'🍇', isNew:true },
+  // Sports — 2 new
+  { word:'Soccer',   zh:'足球', cat:'sport',  emoji:'⚽' },
+  { word:'Swimming', zh:'游泳', cat:'sport',  emoji:'🏊' },
+  { word:'Running',  zh:'跑步', cat:'sport',  emoji:'🏃' },
+  { word:'Cycling',  zh:'骑车', cat:'sport',  emoji:'🚴', isNew:true },
+  { word:'Basketball',zh:'篮球',cat:'sport',  emoji:'🏀', isNew:true },
+  // Nature — 2 new
+  { word:'Tree',     zh:'大树', cat:'nature', emoji:'🌳' },
+  { word:'Flower',   zh:'花',   cat:'nature', emoji:'🌸' },
+  { word:'Sun',      zh:'太阳', cat:'nature', emoji:'☀️' },
+  { word:'Cloud',    zh:'云',   cat:'nature', emoji:'☁️' },
+  { word:'Mountain', zh:'山',   cat:'nature', emoji:'⛰️', isNew:true },
+  { word:'River',    zh:'河流', cat:'nature', emoji:'🏞️', isNew:true },
+  // Body — 1 new
+  { word:'Eye',      zh:'眼睛', cat:'body',   emoji:'👁️' },
+  { word:'Ear',      zh:'耳朵', cat:'body',   emoji:'👂' },
+  { word:'Nose',     zh:'鼻子', cat:'body',   emoji:'👃' },
+  { word:'Hand',     zh:'手',   cat:'body',   emoji:'✋' },
+  { word:'Foot',     zh:'脚',   cat:'body',   emoji:'🦶', isNew:true },
+  // Colors — 1 new
+  { word:'Red',      zh:'红色', cat:'color',  emoji:'🔴' },
+  { word:'Blue',     zh:'蓝色', cat:'color',  emoji:'🔵' },
+  { word:'Green',    zh:'绿色', cat:'color',  emoji:'🟢' },
+  { word:'Yellow',   zh:'黄色', cat:'color',  emoji:'🟡' },
+  { word:'Purple',   zh:'紫色', cat:'color',  emoji:'🟣', isNew:true },
+];
+
+const TITLE_CARDS = Object.entries(ALL_CATS).map(([cat,info]) =>
+  ({ word:info.label.toUpperCase(), cat, isTitle:true, id:'t_'+cat })
+);
+
+// ─────────────────────────────────────
+// GAME STATE
+// ─────────────────────────────────────
+let G = {};
+
+// ─────────────────────────────────────
+// ONBOARDING — 3-step flow
+// ─────────────────────────────────────
+let obStep = 0;   // 1 = category preview, 2 = word exposure
+let obTimer = null;
+let obCountdownRaf = null;
+
+function startOnboarding() {
+  obStep = 0;
+  document.getElementById('ob-overlay').classList.add('show');
+  showObStep1();
+}
+
+// Step 1: Category preview
+function showObStep1() {
+  obStep = 1;
+  const modal = document.getElementById('ob-modal');
+  const cats = Object.entries(ALL_CATS);
+  let html = `
+    <div class="ob-steps">${[1,2].map(i=>`<div class="ob-step-dot${i===1?' active':''}"></div>`).join('')}</div>
+    <div class="m-title" style="margin-bottom:4px">本局主题</div>
+    <div style="font-size:11px;color:#aaa;font-weight:600;margin-bottom:2px">这局共有 ${cats.length} 个类别，先认识一下👀</div>
+    <div class="ob-cats">
+  `;
+  cats.forEach(([cat,info],i) => {
+    html += `<div class="ob-cat-pill" style="animation-delay:${i*0.08}s;border-color:${info.color}20;background:${info.color}12">
+      <span class="ob-cat-emoji">${info.emoji}</span>
+      <span class="ob-cat-name" style="color:${info.dark?'#333':info.color}">${info.label}</span>
+    </div>`;
+  });
+  html += `</div>
+    <div class="ob-countdown"><div class="ob-countdown-fill" id="ob-cd" style="width:100%"></div></div>
+    <div style="display:flex;gap:10px;justify-content:center">
+      <button class="btn btn-lg" onclick="showObStep2()">下一步 →</button>
+    </div>`;
+  modal.innerHTML = html;
+  // Auto-advance after 4s
+  startCountdown('ob-cd', 4000, showObStep2);
+}
+
+// Step 2: Word exposure (all words flat, with emoji + en + NEW badge)
+function showObStep2() {
+  clearCountdown();
+  obStep = 2;
+  const modal = document.getElementById('ob-modal');
+  const newCount = ALL_WORDS.filter(w=>w.isNew).length;
+  let html = `
+    <div class="ob-steps">${[1,2].map(i=>`<div class="ob-step-dot${i===2?' active':''}"></div>`).join('')}</div>
+    <div class="m-title" style="margin-bottom:4px">认识这些单词</div>
+    <div class="ob-words-intro">记住每个单词属于哪类，准备好再开始！<br>
+      <span style="color:#FF6B6B;font-weight:800">✨ ${newCount} 个新词</span>值得重点关注
+    </div>
+    <div class="ob-legend">
+      <span class="ob-legend-badge">NEW</span> = 这局第一次出现的词，注意记忆！
+    </div>
+    <div class="ob-grid">
+  `;
+  ALL_WORDS.forEach((w, i) => {
+    html += `<div class="ob-word-card" style="animation-delay:${i*0.04}s">
+      ${w.isNew ? '<span class="ob-new-badge">NEW</span>' : ''}
+      <span class="ob-word-emoji">${w.emoji}</span>
+      <span class="ob-word-en">${w.word}</span>
+    </div>`;
+  });
+  html += `</div>
+    <div class="ob-countdown"><div class="ob-countdown-fill" id="ob-cd2" style="width:100%"></div></div>
+    <div style="display:flex;gap:10px;justify-content:center">
+      <button class="btn btn-lg" onclick="finishOnboarding()">开始游戏！🎮</button>
+    </div>`;
+  modal.innerHTML = html;
+  // Auto-advance after 10s
+  startCountdown('ob-cd2', 10000, finishOnboarding);
+}
+
+function finishOnboarding() {
+  clearCountdown();
+  document.getElementById('ob-overlay').classList.remove('show');
+  newGame();
+}
+
+function startCountdown(elId, ms, cb) {
+  clearCountdown();
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const start = performance.now();
+  function tick(now) {
+    const elapsed = now - start;
+    const pct = Math.max(0, 100 - (elapsed / ms * 100));
+    if (el) el.style.width = pct + '%';
+    if (elapsed >= ms) { cb(); return; }
+    obCountdownRaf = requestAnimationFrame(tick);
+  }
+  obCountdownRaf = requestAnimationFrame(tick);
+}
+function clearCountdown() {
+  if (obCountdownRaf) { cancelAnimationFrame(obCountdownRaf); obCountdownRaf = null; }
+  clearTimeout(obTimer);
+}
+
+function showHowToPlay() {
+  document.getElementById('how-overlay').classList.add('show');
+}
+
+// ─────────────────────────────────────
+// GAME INIT
+// ─────────────────────────────────────
+function newGame() {
+  const titlePool = TITLE_CARDS.map(c => ({...c, faceUp:false, id:'t_'+c.cat+Math.random()}));
+  const wordPool  = ALL_WORDS.map((w,i) => ({...w, faceUp:false, id:'w'+i+Math.random()}));
+  const all = [...titlePool, ...wordPool]; shuffle(all);
+  const countPerCat = {};
+  wordPool.forEach(w => { countPerCat[w.cat] = (countPerCat[w.cat]||0)+1; });
+  const numCols = IS_MOBILE ? 5 : 6;
+  const cols = []; let idx = 0;
+  for (let i = 0; i < numCols; i++) {
+    const col = [];
+    for (let j = 0; j <= i; j++) {
+      if (idx >= all.length) break;
+      const card = all[idx++]; card.faceUp = (j === i); col.push(card);
+    }
+    cols.push(col);
+  }
+  const stock = all.slice(idx).map(c => { c.faceUp = false; return c; });
+  G = {
+    steps:90, score:0, countPerCat, cols, stock, waste:[],
+    slots:[{cat:null,cards:[],done:false},{cat:null,cards:[],done:false},{cat:null,cards:[],done:false},{cat:null,cards:[],done:false}],
+    completedCats:[], selected:null, totalWords:wordPool.length, finished:false,
+  };
+  document.getElementById('end-overlay').classList.remove('show');
+  render();
+}
+
+// ─────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────
+function render() {
+  renderHeader(); renderFoundation(); renderStockWaste(); renderTableau(); renderProgress(); updateFbarHeight();
+}
+
+function renderHeader() {
+  document.getElementById('val-steps').textContent = G.steps;
+  document.getElementById('val-score').textContent  = G.score;
+}
+
+function renderFoundation() {
+  ['f-row-desktop','f-row-mobile'].forEach(rowId => {
+    const row = document.getElementById(rowId); row.innerHTML = '';
+    G.slots.forEach((slot, si) => {
+      const el = document.createElement('div');
+      el.className = 'f-slot' + (slot.cat?' live':'') + (slot.done?' done':'');
+      if (G.selected && !slot.done) {
+        const sc = G.selected.card;
+        const {isBottomFaceUp, faceUpCards, colSameCat} = G.selected;
+        if (sc.isTitle && !slot.cat) el.classList.add('drop-hl');
+        if (!sc.isTitle && slot.cat && cardMatchesCat(sc, slot.cat)) el.classList.add('drop-hl');
+        if (!sc.isTitle && slot.cat && isBottomFaceUp && colSameCat &&
+            (colSameCat===slot.cat || (faceUpCards[0].ambig&&faceUpCards[0].ambig.includes(slot.cat))))
+          el.classList.add('drop-hl');
+      }
+      if (!slot.cat) {
+        el.innerHTML = '<div class="f-slot-empty-hint">★<br>放标题卡</div>';
+      } else {
+        const ci = ALL_CATS[slot.cat];
+        const total = G.countPerCat[slot.cat]||1;
+        const have  = slot.cards.length;
+        const banner = document.createElement('div');
+        banner.className = 'f-banner'; banner.style.background = ci.color;
+        if (ci.dark) banner.style.color = '#333';
+        banner.innerHTML = `<span class="f-banner-emoji">${ci.emoji}</span><span class="f-progress">${have}/${total}</span>`;
+        el.appendChild(banner);
+        if (slot.cards.length > 0) {
+          const chips = document.createElement('div'); chips.className = 'f-chips';
+          slot.cards.forEach(card => {
+            const chip = document.createElement('div');
+            chip.className = 'f-chip';
+            chip.style.background = ci.color + (slot.done?'99':'');
+            chip.textContent = card.word;
+            chips.appendChild(chip);
+          });
+          el.appendChild(chips);
+        }
+      }
+      if (!slot.done) el.addEventListener('click', e => { e.stopPropagation(); onClickSlot(si); });
+      row.appendChild(el);
+    });
+  });
+}
+
+function renderStockWaste() {
+  const sEl = document.getElementById('stock');
+  document.getElementById('stock-n').textContent = G.stock.length;
+  sEl.classList.toggle('empty', G.stock.length===0);
+  const wEl = document.getElementById('waste'); wEl.innerHTML = '';
+  if (!G.waste.length) { wEl.innerHTML = '<span class="waste-hint">翻牌<br>到这里</span>'; return; }
+  const top = G.waste[G.waste.length-1];
+  const ce = makeCard(top);
+  if (G.selected && G.selected.src==='waste') ce.classList.add('sel');
+  ce.addEventListener('click', e => { e.stopPropagation(); onClickWasteTop(); });
+  wEl.appendChild(ce);
+}
+
+function renderTableau() {
+  const tab = document.getElementById('tableau'); tab.innerHTML = '';
+  G.cols.forEach((col, ci) => {
+    const colEl = document.createElement('div'); colEl.className = 'col';
+    if (!col.length) {
+      const empty = document.createElement('div'); empty.className = 'col-empty';
+      if (G.selected) empty.classList.add('drop-hl');
+      empty.addEventListener('click', e => { e.stopPropagation(); onClickCol(ci); });
+      colEl.appendChild(empty);
+    } else {
+      col.forEach((card, ki) => {
+        const isTop = ki === col.length-1;
+        const firstFaceUpIdx = col.findIndex(c => c.faceUp);
+        const isBottomFaceUp = card.faceUp && (ki===firstFaceUpIdx) && (col.filter(c=>c.faceUp).length>1);
+        const ce = makeCard(card); ce.style.zIndex = ki+1;
+        if (!card.faceUp) {
+          ce.style.pointerEvents = 'none';
+        } else if (isTop) {
+          if (G.selected && G.selected.src==='col' && G.selected.colIdx===ci) ce.classList.add('sel');
+          ce.addEventListener('click', e => { e.stopPropagation(); onClickTopCard(ci,card,ki); });
+        } else if (isBottomFaceUp) {
+          if (G.selected && G.selected.src==='col' && G.selected.colIdx===ci && G.selected.isBottomFaceUp) ce.classList.add('sel');
+          ce.style.pointerEvents = 'auto';
+          ce.addEventListener('click', e => { e.stopPropagation(); onClickTopCard(ci,card,ki); });
+        } else {
+          ce.style.pointerEvents = 'none';
+          if (card.faceUp) ce.classList.add('col-sel-dim');
+        }
+        colEl.appendChild(ce);
+      });
+    }
+    colEl.addEventListener('click', e => { e.stopPropagation(); onClickCol(ci); });
+    tab.appendChild(colEl);
+  });
+}
+
+function makeCard(card) {
+  const el = document.createElement('div');
+  if (!card.faceUp) { el.className = 'card face-down'; return el; }
+  el.className = 'card';
+  if (card.isTitle) el.classList.add('title-card');
+  // NEW badge: only on non-title word cards
+  if (!card.isTitle && card.isNew) {
+    const badge = document.createElement('span');
+    badge.className = 'new-badge'; badge.textContent = 'NEW';
+    el.appendChild(badge);
+  }
+  el.innerHTML += `<span class="cw">${card.word}</span>`;
+  return el;
+}
+
+function renderProgress() {
+  const done = G.slots.reduce((s,sl)=>s+sl.cards.length,0) + G.completedCats.reduce((s,cc)=>s+cc.cards.length,0);
+  const pct  = G.totalWords > 0 ? Math.round(done/G.totalWords*100) : 0;
+  ['d','m'].forEach(k => {
+    document.getElementById('prog-fill-'+k).style.width = pct+'%';
+    document.getElementById('prog-pct-'+k).textContent  = pct+'%';
+  });
+}
+
+function updateFbarHeight() {
+  if (!IS_MOBILE) return;
+  requestAnimationFrame(() => {
+    const h = document.getElementById('mobile-fbar').offsetHeight;
+    document.getElementById('scroll-area').style.paddingBottom = (h+8)+'px';
+  });
+}
+
+// ─────────────────────────────────────
+// INTERACTIONS
+// ─────────────────────────────────────
+function clickStock() {
+  if (G.finished) return;
+  if (!G.stock.length) {
+    if (!G.waste.length) { toast('没有牌了！','warn'); return; }
+    G.stock = [...G.waste].reverse().map(c=>{c.faceUp=false;return c});
+    G.waste = []; spendStep(); toast('🔁 牌堆重置','info'); render(); return;
+  }
+  spendStep();
+  const card = G.stock.pop(); card.faceUp = true; G.waste.push(card);
+  if (card.isTitle) toast('★ 翻到标题卡！选中→点类别格解锁','info',2800);
+  render();
+}
+
+function onClickWasteTop() {
+  if (G.finished) return; if (!G.waste.length) return;
+  const top = G.waste[G.waste.length-1];
+  if (G.selected && G.selected.src==='waste') { G.selected=null; render(); return; }
+  G.selected = {src:'waste', card:top, isBottomFaceUp:false, faceUpCards:null, colSameCat:null};
+  render();
+  toast('选中 '+top.word+(top.isTitle?' → 点类别格解锁':' → 点类别格归入'),'info',2000);
+}
+
+function onClickTopCard(ci, card, ki) {
+  if (G.finished) return; if (!card.faceUp) return;
+  if (G.selected) { onClickCol(ci); return; }
+  const col = G.cols[ci];
+  const faceUpCards = col.filter(c=>c.faceUp);
+  const firstFaceUpIdx = col.findIndex(c=>c.faceUp);
+  const isBottomFaceUp = (ki===firstFaceUpIdx) && (faceUpCards.length>1);
+  const colSameCat = isBottomFaceUp ? checkAllSameCat(faceUpCards) : null;
+  G.selected = {src:'col', colIdx:ci, card, isBottomFaceUp, faceUpCards, colSameCat};
+  render();
+  if (isBottomFaceUp && colSameCat)
+    toast('选中 '+card.word+'（整列同类）→ 点类别格整列归入！','info',2500);
+  else
+    toast('选中 '+card.word+' → 点类别格归入，或叠放到同类列','info',2000);
+}
+
+function checkAllSameCat(cards) {
+  let common = getCats(cards[0]);
+  for (let i=1; i<cards.length; i++) {
+    const c = getCats(cards[i]); common = common.filter(x=>c.includes(x));
+    if (!common.length) return null;
+  }
+  return common[0];
+}
+function getCats(card) { return card.ambig ? card.ambig : [card.cat]; }
+
+function onClickCol(ci) {
+  if (G.finished) return; if (!G.selected) return;
+  const {src, card, colIdx} = G.selected;
+  if (src==='col' && colIdx===ci) { G.selected=null; render(); return; }
+  const targetCol = G.cols[ci]; let canPlace = false;
+  if (!targetCol.length) { canPlace = true; }
+  else {
+    const top = targetCol[targetCol.length-1];
+    if (!top.faceUp)   { toast('不能放到暗牌上！','err'); return; }
+    if (top.isTitle||card.isTitle) { toast('标题卡要放到类别格！','err'); return; }
+    canPlace = sameCategory(card, top);
+  }
+  if (!canPlace) {
+    const top = targetCol.length>0 ? targetCol[targetCol.length-1] : null;
+    toast('❌ '+card.word+' 与 '+(top?top.word:'目标')+' 不同类','err'); return;
+  }
+  removeFromSource(src, colIdx); targetCol.push(card);
+  G.selected = null; spendStep(); G.score += 2; render();
+}
+
+function onClickSlot(si) {
+  if (G.finished) return; if (!G.selected) return;
+  const {src, card, colIdx, isBottomFaceUp, faceUpCards, colSameCat} = G.selected;
+  const slot = G.slots[si];
+
+  // Title card → unlock
+  if (card.isTitle) {
+    if (slot.cat) { toast('这个格子已解锁！','warn'); return; }
+    if (G.slots.some(s=>s.cat===card.cat) || G.completedCats.some(c=>c.cat===card.cat)) {
+      toast(ALL_CATS[card.cat].label+' 已解锁！','warn'); return;
+    }
+    slot.cat = card.cat; removeFromSource(src,colIdx); G.selected=null; spendStep(); G.score+=10;
+    toast('🔓 '+ALL_CATS[card.cat].emoji+' '+ALL_CATS[card.cat].label+' 解锁！','ok',2000);
+    render(); return;
+  }
+
+  if (!slot.cat) { toast('先放★标题卡解锁这个格子！','err'); return; }
+
+  // Whole-column dump
+  if (src==='col' && isBottomFaceUp && colSameCat && slot.cat) {
+    const catMatch = colSameCat===slot.cat ||
+      (faceUpCards.every(c=>cardMatchesCat(c,slot.cat)));
+    if (catMatch) {
+      const toCollect = [...faceUpCards];
+      G.cols[colIdx] = G.cols[colIdx].filter(c=>!c.faceUp);
+      const newCol = G.cols[colIdx];
+      if (newCol.length>0 && !newCol[newCol.length-1].faceUp) newCol[newCol.length-1].faceUp=true;
+      slot.cards.push(...toCollect);
+      G.selected=null; spendStep(); G.score += toCollect.length*10+5;
+      toast('🎉 整列 '+toCollect.length+' 张一次归入！','ok',2200);
+      render(); checkCatComplete(si); checkWin();
+      if (newCol.length>0) setTimeout(()=>toast('🃏 翻开新牌！','info',900),180);
+      return;
+    }
+  }
+
+  // Single card
+  if (!cardMatchesCat(card, slot.cat)) { toast('❌ '+card.word+' 不是 '+ALL_CATS[slot.cat].label,'err'); return; }
+  const collected = [card];
+  if (src==='waste') {
+    const remainWaste = [];
+    for (let i=0; i<G.waste.length-1; i++) {
+      const wc = G.waste[i];
+      if (cardMatchesCat(wc, slot.cat)) collected.push(wc); else remainWaste.push(wc);
+    }
+    G.waste = remainWaste;
+    if (collected.length>1) toast('✨ 一次归入 '+collected.length+' 张！','ok',1400);
+  } else { removeFromSource(src, colIdx); }
+  slot.cards.push(...collected); G.selected=null; spendStep(); G.score += collected.length*10;
+  if (collected.length===1) {
+    const ok=['👏 正确！','✨ 厉害！','🌟 太棒了！','🎉 答对啦！','🔥 继续！'];
+    toast(ok[~~(Math.random()*ok.length)],'ok',1000);
+  }
+  render(); checkCatComplete(si); checkWin();
+}
+
+function checkCatComplete(si) {
+  const slot = G.slots[si];
+  const total = G.countPerCat[slot.cat]||999;
+  if (slot.cards.length >= total) {
+    slot.done = true; G.completedCats.push({cat:slot.cat, cards:[...slot.cards]}); G.score += 20;
+    toast('🏅 '+ALL_CATS[slot.cat].emoji+' '+ALL_CATS[slot.cat].label+' 全部收集！+20','ok',2500);
+    setTimeout(()=>{ slot.cat=null; slot.cards=[]; slot.done=false; render(); }, 1200);
+  }
+}
+
+function removeFromSource(src, colIdx) {
+  if (src==='waste') { G.waste.pop(); }
+  else {
+    G.cols[colIdx].pop();
+    const col = G.cols[colIdx];
+    if (col.length>0 && !col[col.length-1].faceUp) {
+      col[col.length-1].faceUp = true;
+      setTimeout(()=>toast('🃏 翻开新牌！','info',900),120);
+    }
+  }
+}
+
+function sameCategory(a,b) { const ca=getCats(a),cb=getCats(b); return ca.some(c=>cb.includes(c)); }
+function cardMatchesCat(card,cat) { return card.cat===cat || (card.ambig&&card.ambig.includes(cat)); }
+
+function spendStep() {
+  G.steps--;
+  if (G.steps<=0) { G.steps=0; renderHeader(); if(!G.finished) setTimeout(gameOver,300); return; }
+  if (G.steps<=15) {
+    const p=document.getElementById('pill-steps');
+    p.classList.remove('pulse'); void p.offsetWidth; p.classList.add('pulse');
+  }
+  renderHeader();
+}
+
+function checkWin() {
+  const done = G.slots.reduce((s,sl)=>s+sl.cards.length,0) + G.completedCats.reduce((s,cc)=>s+cc.cards.length,0);
+  if (done >= G.totalWords) { G.finished=true; spawnConfetti(); setTimeout(()=>showResults(true),700); }
+}
+function gameOver() { G.finished=true; showResults(false); }
+
+function showResults(win) {
+  const allCollected = {};
+  G.completedCats.forEach(cc=>{ allCollected[cc.cat]=cc.cards; });
+  G.slots.forEach(sl=>{ if(sl.cat&&sl.cards.length>0) allCollected[sl.cat]=sl.cards; });
+  const done = Object.values(allCollected).reduce((s,c)=>s+c.length,0);
+  const modal = document.getElementById('end-modal');
+  let html = `<div class="m-emoji">${win?'🏆':'😅'}</div>`;
+  html += `<div class="results-title">${win?'全部归完啦！':'步数用完了…'}</div>`;
+  html += `<div class="results-sub">${win
+    ?`成功归类全部 ${G.totalWords} 个单词！得分 ${G.score}`
+    :`完成了 ${done}/${G.totalWords} 个，下次加油！`}</div>`;
+  html += `<div class="m-stats">
+    <div class="m-stat"><small>⭐ 得分</small>${G.score}</div>
+    <div class="m-stat"><small>🗂️ 归类</small>${done}/${G.totalWords}</div>
+    <div class="m-stat"><small>👟 剩余</small>${G.steps}步</div>
+  </div>`;
+  if (Object.keys(allCollected).length > 0) {
+    html += `<div style="font-family:'Fredoka One',cursive;font-size:14px;color:#333;margin-bottom:10px;text-align:left">📚 你学到的单词</div>`;
+    html += `<div class="results-grid">`;
+    Object.entries(allCollected).forEach(([cat,cards]) => {
+      const ci = ALL_CATS[cat];
+      html += `<div class="result-cat" style="border:2px solid ${ci.color}">
+        <div class="result-cat-header" style="background:${ci.color}">
+          <span class="result-cat-emoji">${ci.emoji}</span>
+          <span class="result-cat-name">${ci.label}</span>
+        </div><div class="result-words">`;
+      cards.forEach(card => {
+        html += `<div class="result-word">
+          <span class="rw-emoji">${card.emoji||''}</span>
+          <span class="rw-en">${card.word}</span>
+          <span class="rw-zh">${card.zh||''}</span>
+          ${card.isNew?'<span class="rw-new">NEW</span>':''}
+        </div>`;
+      });
+      html += `</div></div>`;
+    });
+    html += `</div>`;
+  }
+  html += `<button class="btn btn-lg" onclick="startOnboarding();document.getElementById('end-overlay').classList.remove('show')">再玩一局！</button>`;
+  modal.innerHTML = html;
+  document.getElementById('end-overlay').classList.add('show');
+}
+
+// ─────────────────────────────────────
+// UTILS
+// ─────────────────────────────────────
+function shuffle(a) {
+  for (let i=a.length-1; i>0; i--) { const j=~~(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+let _tt;
+function toast(msg,type,ms) {
+  type=type||'info'; ms=ms||2000;
+  const el=document.getElementById('toast');
+  el.className='show '+type; el.textContent=msg;
+  clearTimeout(_tt); _tt=setTimeout(()=>el.classList.remove('show'),ms);
+}
+function spawnConfetti() {
+  const colors=['#6C63FF','#FF6B6B','#FF9F43','#48DBFB','#1DD1A1','#F7C948'];
+  for (let i=0; i<60; i++) setTimeout(()=>{
+    const el=document.createElement('div'); el.className='cp-piece';
+    el.style.cssText=`left:${Math.random()*100}vw;background:${colors[~~(Math.random()*colors.length)]};animation-duration:${1.4+Math.random()*1.5}s;animation-delay:${Math.random()*.4}s;width:${6+Math.random()*8}px;height:${6+Math.random()*8}px;border-radius:${Math.random()>.5?'50%':'2px'};top:0`;
+    document.body.appendChild(el); setTimeout(()=>el.remove(),3200);
+  }, i*20);
+}
+
+document.addEventListener('click', e => {
+  if (!G.selected) return;
+  if (!e.target.closest('.card,.waste,.f-slot,.col,.col-empty,.stock'))
+    { G.selected=null; render(); }
+});
+document.addEventListener('touchend', e => {
+  if (e.target.closest('.card,.f-slot,.col-empty,.stock,.waste')) e.preventDefault();
+}, {passive:false});
+
+// ─────────────────────────────────────
+// BOOT
+// ─────────────────────────────────────
+startOnboarding();
+</script>
+</body>
+</html>

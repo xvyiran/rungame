@@ -1,0 +1,1041 @@
+<!--
+  名称: 魔法药水猜颜色 v4
+  类型: 场景模版
+  用途: Mastermind推理游戏，5关普通+3关天才挑战，背景音乐+音效
+  参考: 高饱和扁平风，魔法瓶SVG，Web Audio API音乐
+  可配置参数:
+    NORMAL_LEVELS (Array): 普通关卡配置
+    GENIUS_LEVELS (Array): 天才关卡配置
+    MAX_ROUNDS (number): 每关最大猜测轮数
+  日期: 2026-04-08
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>魔法药水 · 颜色密码</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:      #5c2d91;
+  --bg2:     #7b3fc4;
+  --panel:   #3d1a6e;
+  --gold:    #ffd94a;
+  --gold-dk: #8a5a00;
+  --white:   #ffffff;
+  --font: 'Nunito', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; user-select: none; }
+body {
+  background: var(--bg);
+  font-family: var(--font);
+  display: flex; justify-content: center;
+  min-height: 100vh; overflow-x: hidden;
+}
+.game-wrap {
+  position: relative; z-index: 1;
+  width: 100%; max-width: 400px;
+  min-height: 100vh;
+  display: flex; flex-direction: column;
+  background: linear-gradient(160deg, #6b35b0 0%, #3d1a6e 60%, #2a0f52 100%);
+}
+
+/* ── INTRO ── */
+.intro-screen {
+  position: fixed; inset: 0;
+  background: linear-gradient(160deg, #7b3fc4 0%, #3d1a6e 100%);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  z-index: 300; padding: 20px;
+  transition: opacity .5s;
+}
+.intro-screen.hide { opacity: 0; pointer-events: none; }
+.intro-title {
+  font-size: 28px; font-weight: 900; color: var(--gold);
+  text-shadow: 0 3px 0 #8a5a00, 0 0 20px rgba(255,217,74,.4);
+  margin-bottom: 20px; letter-spacing: 1px; text-align: center;
+}
+.witch-wrap { display: flex; flex-direction: column; align-items: center; margin-bottom: 16px; }
+.witch-char {
+  font-size: 90px; line-height: 1;
+  filter: drop-shadow(0 8px 20px rgba(0,0,0,.4));
+  animation: wfloat 2.5s ease-in-out infinite;
+}
+@keyframes wfloat {
+  0%,100% { transform: translateY(0) rotate(-2deg); }
+  50%      { transform: translateY(-10px) rotate(2deg); }
+}
+.speech-bubble {
+  background: white; border: 3px solid var(--gold);
+  border-radius: 18px 18px 18px 4px;
+  padding: 14px 18px; max-width: 280px;
+  font-size: 14px; font-weight: 700; color: #2a0f52;
+  line-height: 1.6; box-shadow: 0 6px 20px rgba(0,0,0,.3);
+  text-align: center; margin-top: 12px;
+}
+.speech-bubble em { color: #a855f7; font-style: normal; }
+.intro-bottles { display: flex; gap: 10px; justify-content: center; margin: 14px 0; }
+.btn-start {
+  background: linear-gradient(135deg, var(--gold), #ffb700);
+  border: none; border-radius: 20px; padding: 14px 40px;
+  font-family: var(--font); font-size: 18px; font-weight: 900;
+  color: #2a0f52; cursor: pointer;
+  box-shadow: 0 5px 0 #8a5a00, 0 0 20px rgba(255,217,74,.3);
+  transition: transform .1s, box-shadow .1s;
+}
+.btn-start:active { transform: translateY(4px); box-shadow: 0 1px 0 #8a5a00; }
+
+/* ── MUSIC TOGGLE ── */
+.music-btn {
+  position: fixed; top: 14px; right: 16px; z-index: 400;
+  background: rgba(0,0,0,.35); border: 2px solid rgba(255,255,255,.3);
+  border-radius: 50%; width: 38px; height: 38px;
+  font-size: 18px; cursor: pointer; display: flex;
+  align-items: center; justify-content: center;
+  transition: background .2s;
+}
+.music-btn:hover { background: rgba(0,0,0,.5); }
+
+/* ── HEADER ── */
+.header {
+  background: rgba(0,0,0,.25); padding: 12px 16px 10px;
+  border-bottom: 4px solid rgba(255,255,255,.15);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.game-title { font-size: 20px; font-weight: 900; color: var(--gold); text-shadow: 0 2px 8px rgba(255,217,74,.4); }
+.level-badge {
+  background: rgba(0,0,0,.35); border: 2.5px solid var(--gold);
+  border-radius: 20px; padding: 4px 14px;
+  font-size: 13px; font-weight: 900; color: var(--gold);
+}
+.genius-badge {
+  background: linear-gradient(135deg, #ff4757, #ff6b35);
+  border-color: #ff4757; color: white;
+  text-shadow: 0 1px 3px rgba(0,0,0,.4);
+  animation: geniusPulse 1.5s ease-in-out infinite;
+}
+@keyframes geniusPulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(255,71,87,.4); }
+  50%      { box-shadow: 0 0 0 8px rgba(255,71,87,0); }
+}
+
+/* ── WITCH SCENE ── */
+.witch-scene {
+  padding: 10px 16px 8px;
+  display: flex; align-items: flex-end; justify-content: space-between;
+  border-bottom: 4px solid rgba(255,255,255,.12);
+  min-height: 82px;
+}
+.scene-witch { font-size: 52px; line-height: 1; animation: wfloat 3s ease-in-out infinite; }
+.scene-bubble {
+  background: white; border: 2.5px solid var(--gold);
+  border-radius: 14px 14px 14px 4px;
+  padding: 8px 12px; font-size: 12px; font-weight: 700; color: #2a0f52;
+  max-width: 160px; line-height: 1.45; box-shadow: 0 4px 12px rgba(0,0,0,.3);
+  transition: all .3s;
+}
+.scene-cauldron-wrap { position: relative; }
+.scene-sparkle {
+  position: absolute; top: -16px; left: 50%;
+  transform: translateX(-50%); font-size: 18px;
+  animation: spk 1.8s ease-in-out infinite;
+}
+@keyframes spk {
+  0%,100% { opacity:.3; transform: translateX(-50%) scale(.8); }
+  50%      { opacity:1;  transform: translateX(-50%) scale(1.3); }
+}
+.scene-cauldron { font-size: 46px; }
+
+/* ── HISTORY ── */
+.history-wrap {
+  background: rgba(0,0,0,.2); overflow-y: auto;
+  padding: 10px 12px 6px;
+  display: flex; flex-direction: column; gap: 7px;
+  max-height: 280px; min-height: 0;
+}
+.history-wrap::-webkit-scrollbar { width: 3px; }
+.history-wrap::-webkit-scrollbar-thumb { background: rgba(255,255,255,.2); border-radius: 2px; }
+.h-row {
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,.07); border: 1.5px solid rgba(255,255,255,.12);
+  border-radius: 14px; padding: 6px 10px;
+  animation: rowIn .3s ease-out;
+}
+@keyframes rowIn {
+  from { opacity:0; transform: translateY(-8px); }
+  to   { opacity:1; transform: translateY(0); }
+}
+.h-round { font-size: 11px; font-weight: 900; color: rgba(255,255,255,.4); min-width: 18px; text-align: center; }
+.h-cells { display: flex; gap: 5px; flex: 1; flex-wrap: wrap; }
+.h-cell {
+  width: 42px; height: 42px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+}
+.h-cell.correct  { background: rgba(31,219,111,.15); border: 3px solid #1fdb6f; }
+.h-cell.wrong-pos { background: rgba(0,0,0,.25); border: 2.5px dashed rgba(255,255,255,.2); }
+.h-cell.wrong    { background: rgba(0,0,0,.25); border: 2px solid rgba(255,255,255,.08); }
+
+/* ── ACTIVE ROW ── */
+.active-wrap {
+  padding: 10px 12px; border-top: 4px solid rgba(255,255,255,.12);
+  border-bottom: 4px solid rgba(255,255,255,.12); background: rgba(0,0,0,.15);
+}
+.active-label {
+  font-size: 10px; font-weight: 800; color: rgba(255,255,255,.5);
+  text-align: center; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 8px;
+}
+.active-slots { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+.a-slot {
+  width: 52px; height: 58px; border-radius: 14px;
+  background: rgba(255,255,255,.08); border: 2.5px dashed rgba(255,255,255,.25);
+  display: flex; align-items: center; justify-content: center;
+  position: relative; transition: all .2s; cursor: default;
+}
+.a-slot.filled { border-style: solid; border-color: rgba(255,255,255,.4); background: rgba(255,255,255,.1); }
+.a-slot.locked { border: 3px solid #1fdb6f; background: rgba(31,219,111,.12); box-shadow: 0 0 14px rgba(31,219,111,.3); }
+.a-slot.locked::after {
+  content: '✓'; position: absolute; bottom: -9px; right: -9px;
+  width: 20px; height: 20px; background: #1fdb6f; border-radius: 50%;
+  font-size: 12px; color: white; font-weight: 900;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid white; line-height: 20px; text-align: center;
+}
+.a-slot.drag-over {
+  border-color: var(--gold) !important; border-style: solid !important;
+  background: rgba(255,217,74,.15) !important;
+  transform: scale(1.1); box-shadow: 0 0 20px rgba(255,217,74,.5);
+}
+.clear-btn {
+  position: absolute; top: -8px; right: -8px;
+  width: 18px; height: 18px; background: #ff4757; border-radius: 50%;
+  font-size: 11px; color: white; font-weight: 900;
+  display: none; align-items: center; justify-content: center;
+  border: 2px solid white; cursor: pointer; z-index: 10;
+}
+.a-slot.filled:not(.locked):hover .clear-btn,
+.a-slot.filled:not(.locked).show-clear .clear-btn { display: flex; }
+
+/* ── PALETTE ── */
+.palette-wrap {
+  background: rgba(0,0,0,.3); padding: 10px 12px 16px;
+  border-top: 4px solid rgba(255,255,255,.12);
+}
+.palette-label {
+  font-size: 10px; font-weight: 800; color: rgba(255,255,255,.5);
+  text-align: center; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 10px;
+}
+.palette { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.p-bottle {
+  width: 48px; height: 58px; display: flex; align-items: center; justify-content: center;
+  cursor: grab; transition: transform .15s, opacity .25s; position: relative;
+}
+.p-bottle:hover:not(.used) { transform: translateY(-6px) scale(1.1); }
+.p-bottle:active { cursor: grabbing; }
+.p-bottle.dragging { opacity: .3; transform: scale(.9); }
+.p-bottle.used { opacity: 0; pointer-events: none; }
+
+/* ── OVERLAY (win/lose/genius prompt) ── */
+.overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.82);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200; opacity: 0; pointer-events: none; transition: opacity .35s;
+}
+.overlay.show { opacity: 1; pointer-events: all; }
+.ov-card {
+  background: linear-gradient(135deg, #4a1f8a, #2a0f52);
+  border: 3px solid var(--gold); border-radius: 24px;
+  padding: 28px 24px; text-align: center; max-width: 300px; width: 90%;
+  box-shadow: 0 20px 60px rgba(0,0,0,.8), 0 0 40px rgba(255,217,74,.15);
+  animation: cpop .4s cubic-bezier(.34,1.56,.64,1);
+}
+.ov-card.genius-card { border-color: #ff4757; box-shadow: 0 20px 60px rgba(0,0,0,.8), 0 0 40px rgba(255,71,87,.25); }
+@keyframes cpop {
+  from { transform: scale(.5); opacity:0; }
+  to   { transform: scale(1);  opacity:1; }
+}
+.ov-emoji  { font-size: 60px; margin-bottom: 10px; }
+.ov-title  { font-size: 22px; font-weight: 900; color: var(--gold); margin-bottom: 8px; }
+.ov-card.genius-card .ov-title { color: #ff6b35; }
+.ov-msg    { font-size: 13px; color: rgba(255,255,255,.75); margin-bottom: 14px; line-height: 1.6; }
+.ov-msg em { color: #ffd94a; font-style: normal; font-weight: 800; }
+.ov-answer { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 20px; }
+.ov-btns   { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.btn-ov {
+  border: none; border-radius: 16px; padding: 12px 24px;
+  font-family: var(--font); font-size: 15px; font-weight: 900;
+  cursor: pointer; transition: transform .1s; box-shadow: 0 4px 0 rgba(0,0,0,.3);
+}
+.btn-ov:active { transform: translateY(3px); }
+.btn-ov.primary { background: linear-gradient(135deg, var(--gold), #ffb700); color: #2a0f52; box-shadow: 0 4px 0 #8a5a00; }
+.btn-ov.secondary { background: rgba(255,255,255,.15); color: white; border: 2px solid rgba(255,255,255,.3); box-shadow: none; }
+.btn-ov.danger { background: linear-gradient(135deg, #ff4757, #ff6b35); color: white; box-shadow: 0 4px 0 #8a1c20; }
+
+/* ── GENIUS RULE BUBBLE ── */
+.genius-rule-banner {
+  background: linear-gradient(135deg, rgba(255,71,87,.2), rgba(255,107,53,.2));
+  border: 2px solid rgba(255,71,87,.5); border-radius: 12px;
+  padding: 8px 12px; margin: 0 12px 0;
+  font-size: 11px; font-weight: 700; color: #ff9fb0;
+  text-align: center; display: none;
+}
+.genius-rule-banner.show { display: block; }
+
+/* touch ghost */
+.t-ghost { position: fixed; pointer-events: none; z-index: 999; transform: translate(-50%,-60%); opacity:.95; display:none; }
+</style>
+</head>
+<body>
+
+<!-- INTRO -->
+<div class="intro-screen" id="intro">
+  <div class="intro-title">🔮 魔法药水工坊</div>
+  <div class="witch-wrap">
+    <div class="witch-char">🧙‍♀️</div>
+    <div class="speech-bubble">
+      善良的魔法师！<br>
+      帮我按照<em>正确顺序</em>加入不同颜色的魔药，就能调配成功！<br><br>
+      你有 <em>8次机会</em> 来尝试，每次会告诉你哪些瓶子放对了～
+    </div>
+  </div>
+  <div class="intro-bottles" id="intro-bottles"></div>
+  <button class="btn-start" onclick="startIntro()">开始调配 ✨</button>
+</div>
+
+<!-- MUSIC TOGGLE -->
+<button class="music-btn" id="music-btn" onclick="toggleMusic()" title="音乐开关">🎵</button>
+
+<div class="game-wrap">
+  <div class="header">
+    <div class="game-title">🔮 魔法药水</div>
+    <div class="level-badge" id="level-badge">第 1 关</div>
+  </div>
+
+  <div class="witch-scene">
+    <div class="scene-witch">🧙‍♀️</div>
+    <div class="scene-bubble" id="hint-bubble">把魔药瓶拖入格子，猜出正确顺序！</div>
+    <div class="scene-cauldron-wrap">
+      <div class="scene-sparkle">✨</div>
+      <div class="scene-cauldron">🪄</div>
+    </div>
+  </div>
+
+  <div class="genius-rule-banner" id="genius-banner"></div>
+
+  <div class="history-wrap" id="history"></div>
+
+  <div class="active-wrap">
+    <div class="active-label" id="active-label">第 1 轮</div>
+    <div class="active-slots" id="active-slots"></div>
+  </div>
+
+  <div class="palette-wrap">
+    <div class="palette-label">拖动魔药瓶 →</div>
+    <div class="palette" id="palette"></div>
+  </div>
+</div>
+
+<!-- OVERLAY -->
+<div class="overlay" id="overlay">
+  <div class="ov-card" id="ov-card">
+    <div class="ov-emoji" id="ov-emoji"></div>
+    <div class="ov-title" id="ov-title"></div>
+    <div class="ov-msg"   id="ov-msg"></div>
+    <div class="ov-answer" id="ov-answer"></div>
+    <div class="ov-btns"  id="ov-btns"></div>
+  </div>
+</div>
+
+<div class="t-ghost" id="t-ghost"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════
+const MAX_ROUNDS = 8;
+
+// Normal levels: slots = colors, no repeat
+const NORMAL_LEVELS = [
+  { slots: 3, colors: 3, repeat: false },
+  { slots: 4, colors: 4, repeat: false },
+  { slots: 5, colors: 5, repeat: false },
+  { slots: 6, colors: 6, repeat: false },
+  { slots: 7, colors: 7, repeat: false },
+];
+
+// Genius levels: harder rules
+const GENIUS_LEVELS = [
+  { slots: 5, colors: 5, repeat: true,  label: '5格5色（颜色可重复）' },
+  { slots: 5, colors: 7, repeat: false, label: '5格7色（颜色不重复）' },
+  { slots: 5, colors: 7, repeat: true,  label: '5格7色（颜色可重复）' },
+];
+
+const GENIUS_HINTS = [
+  '现在颜色<em>可以重复</em>出现！同一种颜色可能放在多个格子里～',
+  '现在有<em>7种颜色</em>但只有5个格子，有些颜色不会出现！',
+  '最难的挑战！<em>7色可重复</em>，考验真正的魔法师！',
+];
+
+const ALL_COLORS = [
+  { id:0, hex:'#ff4757', dark:'#c0122a', light:'#ff8a96', name:'红' },
+  { id:1, hex:'#2196f3', dark:'#0a5fb5', light:'#74c0ff', name:'蓝' },
+  { id:2, hex:'#1fdb6f', dark:'#0a9147', light:'#7af5b0', name:'绿' },
+  { id:3, hex:'#ff9f1c', dark:'#b86500', light:'#ffd07a', name:'橙' },
+  { id:4, hex:'#a855f7', dark:'#6b10c9', light:'#d4a0ff', name:'紫' },
+  { id:5, hex:'#00d4c8', dark:'#008a82', light:'#7af5ee', name:'青' },
+  { id:6, hex:'#ff4dc4', dark:'#b50082', light:'#ff9fe5', name:'粉' },
+  { id:7, hex:'#ff6b35', dark:'#b83800', light:'#ffaa80', name:'橘' },
+  { id:8, hex:'#aadd00', dark:'#6a8a00', light:'#d8f56a', name:'黄绿' },
+];
+
+const HINTS = {
+  start:   ['把魔药瓶拖入格子，猜出正确顺序！','每次会告诉你哪些放对了～','仔细观察每轮的提示！'],
+  correct: ['留下的瓶子位置正确！继续！','越来越近了，加油！','好眼力！继续推理！'],
+  wrongpos:['彩色污渍=颜色对但位置错！','有这个颜色但位置不对！','换个位置试试！'],
+  close:   ['就差一点！','快要破解了！','再想想，你能行！'],
+  win:     ['调配成功！🎉','天才魔法师！','完美！魔药调制完成！'],
+  fail:    ['没关系，下次一定！','秘方暂时保留...','再来一局吧！'],
+};
+
+// ═══════════════════════════════════════════════════════
+// AUDIO ENGINE
+// ═══════════════════════════════════════════════════════
+let audioCtx = null;
+let musicNodes = {};
+let musicOn = true;
+let musicStarted = false;
+
+function getAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+// Play a simple tone
+function playTone(freq, type, duration, vol, delay = 0, detune = 0) {
+  try {
+    const ctx = getAudio();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = type; osc.frequency.value = freq;
+    osc.detune.value = detune;
+    const t = ctx.currentTime + delay;
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(vol, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+    osc.start(t); osc.stop(t + duration + 0.05);
+  } catch(e) {}
+}
+
+// SFX
+function sfxDrag()    { playTone(600, 'sine', 0.08, 0.12); }
+function sfxDrop()    { playTone(440, 'sine', 0.12, 0.15); playTone(550, 'sine', 0.12, 0.1, 0.05); }
+function sfxClear()   { playTone(330, 'triangle', 0.1, 0.1); }
+function sfxCorrect() {
+  [523, 659, 784, 1047].forEach((f,i) => playTone(f, 'sine', 0.18, 0.18, i*0.1));
+}
+function sfxWrongPos() { playTone(350, 'triangle', 0.15, 0.15); playTone(300, 'triangle', 0.15, 0.12, 0.1); }
+function sfxWrong()   { playTone(220, 'sawtooth', 0.2, 0.12); }
+function sfxWin() {
+  const melody = [523,659,784,659,784,1047,784,1047,1319];
+  melody.forEach((f,i) => playTone(f,'sine',0.22,0.2,i*0.1));
+}
+function sfxFail() {
+  [330,294,262,220].forEach((f,i) => playTone(f,'triangle',0.25,0.15,i*0.12));
+}
+function sfxGeniusUnlock() {
+  const m = [523,587,659,698,784,880,988,1047];
+  m.forEach((f,i) => { playTone(f,'sine',0.18,0.22,i*0.08); playTone(f*1.5,'sine',0.12,0.1,i*0.08+0.04); });
+}
+function sfxLevelUp() {
+  [523,659,784,1047,1319].forEach((f,i) => playTone(f,'sine',0.2,0.2,i*0.09));
+}
+
+// Background music: simple magical loop using scheduled notes
+let bgLoopTimeout = null;
+const BG_MELODY = [
+  // freq, duration (sec), vol
+  [523,0.4,0.06],[659,0.4,0.06],[784,0.4,0.06],[880,0.6,0.07],
+  [784,0.4,0.06],[659,0.4,0.06],[523,0.6,0.07],[392,0.4,0.05],
+  [440,0.4,0.06],[523,0.4,0.06],[587,0.4,0.06],[659,0.8,0.07],
+  [587,0.4,0.06],[523,0.4,0.06],[440,0.4,0.06],[392,0.8,0.05],
+];
+const BG_BASS = [
+  [130,0.8,0.04],[164,0.8,0.04],[196,0.8,0.04],[130,0.8,0.04],
+  [130,0.8,0.04],[164,0.8,0.04],[196,0.8,0.04],[130,0.8,0.04],
+];
+
+function playBgLoop() {
+  if (!musicOn) return;
+  try {
+    const ctx = getAudio();
+    let tMel = ctx.currentTime + 0.05;
+    let tBass = ctx.currentTime + 0.05;
+
+    BG_MELODY.forEach(([f, dur, vol]) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'sine'; osc.frequency.value = f;
+      gain.gain.setValueAtTime(0, tMel);
+      gain.gain.linearRampToValueAtTime(vol, tMel + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, tMel + dur * 0.85);
+      osc.start(tMel); osc.stop(tMel + dur);
+      tMel += dur;
+    });
+
+    // Also add gentle hi-hat texture
+    BG_BASS.forEach(([f, dur, vol]) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'triangle'; osc.frequency.value = f;
+      gain.gain.setValueAtTime(0, tBass);
+      gain.gain.linearRampToValueAtTime(vol, tBass + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, tBass + dur * 0.7);
+      osc.start(tBass); osc.stop(tBass + dur);
+      tBass += dur;
+    });
+
+    const totalDur = BG_MELODY.reduce((s, [,d]) => s+d, 0) * 1000;
+    bgLoopTimeout = setTimeout(playBgLoop, totalDur - 100);
+  } catch(e) {}
+}
+
+function startMusic() {
+  if (musicStarted) return;
+  musicStarted = true;
+  if (musicOn) playBgLoop();
+}
+
+function toggleMusic() {
+  musicOn = !musicOn;
+  document.getElementById('music-btn').textContent = musicOn ? '🎵' : '🔇';
+  if (musicOn) {
+    musicStarted = false;
+    playBgLoop();
+  } else {
+    clearTimeout(bgLoopTimeout);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// SVG
+// ═══════════════════════════════════════════════════════
+function bottleSVG(color, size = 40) {
+  const c = color; const w = size, h = Math.round(size * 1.35);
+  return `<svg width="${w}" height="${h}" viewBox="0 0 40 54" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="14" y="1" width="12" height="8" rx="3" fill="#a0622a" stroke="#7a4510" stroke-width="1.2"/>
+    <rect x="16" y="3" width="3" height="4" rx="1.5" fill="rgba(255,255,255,.25)"/>
+    <rect x="15" y="8" width="10" height="7" rx="2" fill="rgba(255,255,255,.3)" stroke="rgba(255,255,255,.55)" stroke-width="1"/>
+    <ellipse cx="20" cy="37" rx="17" ry="16" fill="rgba(255,255,255,.28)" stroke="rgba(255,255,255,.65)" stroke-width="1.5"/>
+    <ellipse cx="20" cy="40" rx="14" ry="12" fill="${c.hex}"/>
+    <ellipse cx="20" cy="37" rx="14" ry="5"  fill="${c.hex}" opacity=".7"/>
+    <ellipse cx="13" cy="33" rx="4" ry="6" fill="rgba(255,255,255,.22)" transform="rotate(-15 13 33)"/>
+    <ellipse cx="11" cy="30" rx="2" ry="3" fill="rgba(255,255,255,.38)" transform="rotate(-15 11 30)"/>
+    <circle cx="27" cy="39" r="2.5" fill="rgba(255,255,255,.28)"/>
+    <circle cx="24" cy="44" r="1.5" fill="rgba(255,255,255,.22)"/>
+    <ellipse cx="20" cy="37" rx="17" ry="16" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="1.5"/>
+    <rect x="14" y="13" width="12" height="6" rx="2" fill="${c.hex}" opacity=".6"/>
+    <rect x="14" y="13" width="12" height="6" rx="2" fill="none" stroke="rgba(255,255,255,.45)" stroke-width="1"/>
+  </svg>`;
+}
+function bottleSVGSm(color) { return bottleSVG(color, 26); }
+
+function splatSVG(color, size = 40) {
+  const h = color.hex, d = color.dark, s = size;
+  return `<svg width="${s}" height="${s}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="21" cy="22" rx="13" ry="11" fill="${d}" opacity=".35"/>
+    <ellipse cx="20" cy="21" rx="13" ry="11" fill="${h}"/>
+    <ellipse cx="7"  cy="17" rx="4.5" ry="3.5" fill="${h}" transform="rotate(-25 7 17)"/>
+    <ellipse cx="33" cy="15" rx="4"   ry="3"   fill="${h}" transform="rotate(20 33 15)"/>
+    <ellipse cx="28" cy="32" rx="4"   ry="3"   fill="${h}" transform="rotate(-10 28 32)"/>
+    <ellipse cx="12" cy="31" rx="3.5" ry="3"   fill="${h}"/>
+    <ellipse cx="20" cy="8"  rx="4"   ry="3.5" fill="${h}"/>
+    <ellipse cx="14" cy="17" rx="4"   ry="3"   fill="rgba(255,255,255,.28)" transform="rotate(-20 14 17)"/>
+    <ellipse cx="12" cy="15" rx="2"   ry="1.5" fill="rgba(255,255,255,.45)" transform="rotate(-20 12 15)"/>
+  </svg>`;
+}
+function splatSVGSm(color) { return splatSVG(color, 32); }
+
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+let G = {};
+let isGenius = false;
+let geniusIdx = 0;
+let normalIdx = 0;
+
+let dragColorId  = null;
+let touchColorId = null;
+const tGhost = document.getElementById('t-ghost');
+
+// ═══════════════════════════════════════════════════════
+// INTRO
+// ═══════════════════════════════════════════════════════
+function buildIntroBottles() {
+  const w = document.getElementById('intro-bottles');
+  w.innerHTML = '';
+  [0,1,2,3].forEach((id,i) => {
+    const d = document.createElement('div');
+    d.style.cssText = `animation:wfloat 2s ease-in-out infinite;animation-delay:${i*0.2}s`;
+    d.innerHTML = bottleSVG(ALL_COLORS[id], 36);
+    w.appendChild(d);
+  });
+}
+
+function startIntro() {
+  startMusic();
+  sfxLevelUp();
+  document.getElementById('intro').classList.add('hide');
+  setTimeout(() => { document.getElementById('intro').style.display = 'none'; }, 500);
+}
+
+// ═══════════════════════════════════════════════════════
+// LEVEL INIT
+// ═══════════════════════════════════════════════════════
+function initLevel(cfg, levelLabel, geniusBannerText = null) {
+  const n  = cfg.slots;
+  const nc = cfg.colors;
+  const repeat = cfg.repeat;
+
+  // Build answer
+  const colorPool = ALL_COLORS.slice(0, nc);
+  let answer;
+  if (repeat) {
+    answer = Array.from({length: n}, () => colorPool[Math.floor(Math.random() * colorPool.length)].id);
+  } else {
+    answer = shuffleArr([...colorPool]).slice(0, n).map(c => c.id);
+  }
+
+  // Build palette (all nc colors shown)
+  const paletteIds = colorPool.map(c => c.id);
+
+  G = {
+    cfg, answer, paletteIds,
+    slots:   n,
+    locked:  new Array(n).fill(false),
+    current: new Array(n).fill(null),
+    round:   1,
+    over:    false,
+    repeat,
+  };
+
+  console.log('Answer:', G.answer.map(id => ALL_COLORS[id].name));
+
+  document.getElementById('level-badge').textContent = levelLabel;
+  const badge = document.getElementById('level-badge');
+  if (geniusBannerText) {
+    badge.className = 'level-badge genius-badge';
+  } else {
+    badge.className = 'level-badge';
+  }
+
+  // Genius rule banner
+  const banner = document.getElementById('genius-banner');
+  if (geniusBannerText) {
+    banner.innerHTML = geniusBannerText;
+    banner.classList.add('show');
+  } else {
+    banner.classList.remove('show');
+  }
+
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('history').innerHTML = '';
+  document.getElementById('ov-card').classList.remove('genius-card');
+
+  setHint(HINTS.start);
+  renderPalette();
+  renderActiveSlots();
+  updateActiveLabel();
+}
+
+function startNormalLevel(idx) {
+  normalIdx = idx;
+  isGenius  = false;
+  initLevel(NORMAL_LEVELS[idx], `第 ${idx + 1} 关`);
+}
+
+function startGeniusLevel(idx) {
+  geniusIdx = idx;
+  isGenius  = true;
+  const cfg = GENIUS_LEVELS[idx];
+  initLevel(cfg, `天才关 ${idx + 1}`, cfg.label);
+  // show genius rule via witch bubble
+  setHintHTML(GENIUS_HINTS[idx]);
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════════
+function renderPalette() {
+  const pal = document.getElementById('palette');
+  pal.innerHTML = '';
+  const lockedIds = G.answer.filter((id, i) => G.locked[i]);
+  const placedIds = G.repeat ? [] : G.current.filter(v => v !== null);
+
+  G.paletteIds.forEach(colorId => {
+    const c   = ALL_COLORS[colorId];
+    const div = document.createElement('div');
+    div.className = 'p-bottle';
+    div.dataset.color = colorId;
+    div.id = `pb-${colorId}`;
+    div.innerHTML = bottleSVG(c, 36);
+
+    // In no-repeat mode: hide if locked or currently placed
+    // In repeat mode: only hide if ALL answer slots with this color are locked
+    const isLocked = !G.repeat && lockedIds.includes(colorId);
+    const isPlaced = !G.repeat && placedIds.includes(colorId);
+    if (isLocked || isPlaced) div.classList.add('used');
+
+    div.draggable = true;
+    div.addEventListener('dragstart', e => {
+      if (div.classList.contains('used')) { e.preventDefault(); return; }
+      dragColorId = colorId; div.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'copy';
+      sfxDrag();
+    });
+    div.addEventListener('dragend', () => div.classList.remove('dragging'));
+    div.addEventListener('touchstart', onTouchStart, { passive: false });
+    pal.appendChild(div);
+  });
+}
+
+function renderActiveSlots() {
+  const wrap = document.getElementById('active-slots');
+  wrap.innerHTML = '';
+  for (let i = 0; i < G.slots; i++) {
+    const div = document.createElement('div');
+    div.className = 'a-slot'; div.dataset.idx = i;
+
+    if (G.locked[i]) {
+      div.classList.add('locked');
+      div.innerHTML = bottleSVG(ALL_COLORS[G.answer[i]], 34);
+    } else if (G.current[i] !== null) {
+      div.classList.add('filled');
+      div.innerHTML = bottleSVG(ALL_COLORS[G.current[i]], 34);
+      const cb = document.createElement('div');
+      cb.className = 'clear-btn'; cb.textContent = '×';
+      cb.onclick = e => { e.stopPropagation(); clearSlot(i); sfxClear(); };
+      div.appendChild(cb);
+      div.addEventListener('click', () => div.classList.toggle('show-clear'));
+    } else {
+      div.addEventListener('dragover',  e => { e.preventDefault(); div.classList.add('drag-over'); });
+      div.addEventListener('dragleave', () => div.classList.remove('drag-over'));
+      div.addEventListener('drop',      e => { e.preventDefault(); div.classList.remove('drag-over'); dropToSlot(i); });
+    }
+    wrap.appendChild(div);
+  }
+}
+
+function updateActiveLabel() {
+  document.getElementById('active-label').textContent =
+    `第 ${G.round} 轮（共 ${MAX_ROUNDS} 次机会）`;
+}
+
+function clearSlot(i) {
+  G.current[i] = null;
+  renderPalette(); renderActiveSlots();
+}
+
+function dropToSlot(i) {
+  const id = dragColorId ?? touchColorId;
+  if (id === null || id === undefined) return;
+  if (G.locked[i]) return;
+  // no-repeat: can't place same color twice
+  if (!G.repeat && G.current.includes(id)) return;
+  G.current[i] = id;
+  sfxDrop();
+  renderPalette(); renderActiveSlots();
+  checkAutoSubmit();
+}
+
+function checkAutoSubmit() {
+  const allFilled = G.current.every((v, i) => G.locked[i] || v !== null);
+  if (allFilled) setTimeout(submitGuess, 380);
+}
+
+// ═══════════════════════════════════════════════════════
+// SUBMIT
+// ═══════════════════════════════════════════════════════
+function submitGuess() {
+  if (G.over) return;
+  const guess    = G.current.map((v, i) => G.locked[i] ? G.answer[i] : v);
+  const feedback = calcFeedback(guess, G.answer, G.locked);
+
+  renderHistoryRow(G.round, guess, feedback);
+
+  const cs = feedback.filter(f => f === 'correct').length;
+  const wp = feedback.filter(f => f === 'wrong-pos').length;
+  const wr = feedback.filter(f => f === 'wrong').length;
+
+  // SFX based on result
+  if (cs > 0 && wp === 0 && wr === 0) sfxCorrect();
+  else if (cs > 0) { sfxCorrect(); }
+  else if (wp > 0) sfxWrongPos();
+  else sfxWrong();
+
+  feedback.forEach((f, i) => { if (f === 'correct') G.locked[i] = true; });
+
+  if (G.locked.every(Boolean)) { endGame(true); return; }
+  if (G.round >= MAX_ROUNDS)   { endGame(false); return; }
+
+  if (cs > 0)                       setHint(HINTS.correct);
+  else if (wp > 0)                  setHint(HINTS.wrongpos);
+  else if (G.round >= MAX_ROUNDS-2) setHint(HINTS.close);
+  else                              setHint(HINTS.start);
+
+  G.round++;
+  G.current = new Array(G.slots).fill(null);
+  renderPalette(); renderActiveSlots(); updateActiveLabel();
+  setTimeout(() => { const h = document.getElementById('history'); h.scrollTop = h.scrollHeight; }, 150);
+}
+
+function calcFeedback(guess, answer, locked) {
+  const result  = new Array(guess.length).fill('wrong');
+  const ansUsed = new Array(answer.length).fill(false);
+  const gusUsed = new Array(guess.length).fill(false);
+  for (let i = 0; i < guess.length; i++) {
+    if (locked[i] || guess[i] === answer[i]) {
+      result[i] = 'correct'; ansUsed[i] = gusUsed[i] = true;
+    }
+  }
+  for (let i = 0; i < guess.length; i++) {
+    if (gusUsed[i]) continue;
+    for (let j = 0; j < answer.length; j++) {
+      if (ansUsed[j]) continue;
+      if (guess[i] === answer[j]) { result[i] = 'wrong-pos'; ansUsed[j] = true; break; }
+    }
+  }
+  return result;
+}
+
+// ═══════════════════════════════════════════════════════
+// HISTORY ROW
+// ═══════════════════════════════════════════════════════
+function renderHistoryRow(round, guess, feedback) {
+  const hist = document.getElementById('history');
+  const row  = document.createElement('div'); row.className = 'h-row';
+  const num  = document.createElement('div'); num.className = 'h-round'; num.textContent = round;
+  row.appendChild(num);
+  const cells = document.createElement('div'); cells.className = 'h-cells';
+  for (let i = 0; i < guess.length; i++) {
+    const cell = document.createElement('div');
+    cell.className = `h-cell ${feedback[i]}`;
+    const c = ALL_COLORS[guess[i]];
+    if (feedback[i] === 'correct') {
+      cell.innerHTML = bottleSVGSm(c);
+    } else if (feedback[i] === 'wrong-pos') {
+      cell.innerHTML = splatSVGSm(c);
+    } else {
+      cell.style.position = 'relative';
+      cell.innerHTML = `${bottleSVGSm(c)}<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;"><svg width="46" height="46" viewBox="0 0 46 46"><line x1="8" y1="6" x2="38" y2="40" stroke="rgba(255,255,255,.85)" stroke-width="3.5" stroke-linecap="round"/></svg></div>`;
+    }
+    cells.appendChild(cell);
+  }
+  row.appendChild(cells);
+  hist.appendChild(row);
+}
+
+// ═══════════════════════════════════════════════════════
+// END GAME
+// ═══════════════════════════════════════════════════════
+function endGame(won) {
+  G.over = true;
+  const ov   = document.getElementById('overlay');
+  const card = document.getElementById('ov-card');
+  ov.classList.add('show');
+
+  // Clear buttons
+  document.getElementById('ov-btns').innerHTML = '';
+  document.getElementById('ov-answer').innerHTML = '';
+
+  if (won) {
+    sfxWin();
+
+    if (!isGenius && normalIdx === NORMAL_LEVELS.length - 1) {
+      // ── Completed all 5 normal levels → GENIUS PROMPT ──
+      sfxGeniusUnlock();
+      card.classList.add('genius-card');
+      document.getElementById('ov-emoji').textContent = '🌟';
+      document.getElementById('ov-title').textContent = '你太厉害了！';
+      document.getElementById('ov-msg').innerHTML =
+        `5关全部完成！想要尝试一下<em>天才挑战</em>吗？\n难度大幅提升，颜色可能重复，考验真正的推理高手！`;
+
+      addBtn('挑战天才关！🔥', 'danger', () => {
+        ov.classList.remove('show');
+        setTimeout(() => startGeniusLevel(0), 300);
+      });
+      addBtn('不了，我已经很厉害了 😌', 'secondary', () => {
+        ov.classList.remove('show');
+        setTimeout(showMasterTitle, 300);
+      });
+
+    } else if (isGenius) {
+      // ── Genius level won ──
+      card.classList.add('genius-card');
+      document.getElementById('ov-emoji').textContent = geniusIdx === 2 ? '🏆' : '🔥';
+      document.getElementById('ov-title').textContent = geniusIdx === 2 ? '终极魔法师！' : '天才认证！';
+      document.getElementById('ov-msg').innerHTML = `天才第 ${geniusIdx+1} 关完成！用了 <em>${G.round} 轮</em>！`;
+
+      if (geniusIdx < GENIUS_LEVELS.length - 1) {
+        addBtn(`下一天才关 🔥`, 'danger', () => {
+          ov.classList.remove('show');
+          setTimeout(() => startGeniusLevel(geniusIdx + 1), 300);
+        });
+        addBtn('返回普通关卡', 'secondary', () => {
+          ov.classList.remove('show');
+          setTimeout(() => startNormalLevel(0), 300);
+        });
+      } else {
+        // All genius done
+        showAllDone();
+        return;
+      }
+
+    } else {
+      // ── Normal level won ──
+      document.getElementById('ov-emoji').textContent = G.round <= 3 ? '🏆' : '🎉';
+      document.getElementById('ov-title').textContent = G.round <= 3 ? '完美破解！' : '调配成功！';
+      document.getElementById('ov-msg').innerHTML = `用了 <em>${G.round} 轮</em> 猜出秘方！`;
+      addBtn(`下一关 ✨`, 'primary', () => {
+        ov.classList.remove('show');
+        setTimeout(() => startNormalLevel(normalIdx + 1), 300);
+      });
+    }
+
+  } else {
+    // ── Lost ──
+    sfxFail();
+    document.getElementById('ov-emoji').textContent = '😔';
+    document.getElementById('ov-title').textContent = isGenius ? '天才也有失手时...' : '秘方保留中...';
+    document.getElementById('ov-msg').innerHTML = '正确顺序是：';
+
+    // Show answer
+    G.answer.forEach(id => {
+      const sp = document.createElement('span');
+      sp.innerHTML = bottleSVG(ALL_COLORS[id], 28);
+      document.getElementById('ov-answer').appendChild(sp);
+    });
+
+    addBtn('重试 🔄', 'primary', () => {
+      ov.classList.remove('show');
+      setTimeout(() => isGenius ? startGeniusLevel(geniusIdx) : startNormalLevel(normalIdx), 300);
+    });
+  }
+
+  setHint(won ? HINTS.win : HINTS.fail);
+}
+
+function addBtn(text, cls, fn) {
+  const b = document.createElement('button');
+  b.className = `btn-ov ${cls}`;
+  b.textContent = text;
+  b.onclick = fn;
+  document.getElementById('ov-btns').appendChild(b);
+}
+
+function showMasterTitle() {
+  const ov   = document.getElementById('overlay');
+  const card = document.getElementById('ov-card');
+  ov.classList.add('show');
+  card.classList.remove('genius-card');
+  document.getElementById('ov-emoji').textContent = '👑';
+  document.getElementById('ov-title').textContent = '魔药大师';
+  document.getElementById('ov-msg').innerHTML = `你已经获得 <em>魔药大师</em> 称号！\n五关全部完成，实力超群！`;
+  document.getElementById('ov-answer').innerHTML = '';
+  document.getElementById('ov-btns').innerHTML = '';
+  addBtn('再来一次 🎮', 'primary', () => {
+    ov.classList.remove('show');
+    setTimeout(() => startNormalLevel(0), 300);
+  });
+  sfxWin();
+}
+
+function showAllDone() {
+  const ov   = document.getElementById('overlay');
+  const card = document.getElementById('ov-card');
+  ov.classList.add('show');
+  card.classList.add('genius-card');
+  document.getElementById('ov-emoji').textContent = '🌈';
+  document.getElementById('ov-title').textContent = '终极魔法师！';
+  document.getElementById('ov-msg').innerHTML = `普通五关 + 天才三关全部通关！\n你是真正的 <em>终极魔法师</em>！`;
+  document.getElementById('ov-answer').innerHTML = '';
+  document.getElementById('ov-btns').innerHTML = '';
+  addBtn('再挑战一次 🔥', 'danger', () => {
+    ov.classList.remove('show');
+    setTimeout(() => startNormalLevel(0), 300);
+  });
+  sfxGeniusUnlock();
+}
+
+// ═══════════════════════════════════════════════════════
+// HINT
+// ═══════════════════════════════════════════════════════
+function setHint(arr) {
+  const a = Array.isArray(arr) ? arr : [arr];
+  document.getElementById('hint-bubble').textContent = a[Math.floor(Math.random() * a.length)];
+}
+function setHintHTML(html) {
+  document.getElementById('hint-bubble').innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════
+// TOUCH DRAG
+// ═══════════════════════════════════════════════════════
+function onTouchStart(e) {
+  e.preventDefault();
+  const btn = e.currentTarget;
+  if (btn.classList.contains('used')) return;
+  touchColorId = parseInt(btn.dataset.color);
+  tGhost.innerHTML = bottleSVG(ALL_COLORS[touchColorId], 44);
+  tGhost.style.display = 'block';
+  moveTGhost(e.touches[0]);
+  sfxDrag();
+}
+document.addEventListener('touchmove', e => {
+  if (touchColorId === null) return;
+  e.preventDefault();
+  moveTGhost(e.touches[0]);
+  highlightSlot(e.touches[0]);
+}, { passive: false });
+document.addEventListener('touchend', e => {
+  if (touchColorId === null) return;
+  tGhost.style.display = 'none';
+  clearDragHighlights();
+  const t  = e.changedTouches[0];
+  const el = document.elementFromPoint(t.clientX, t.clientY);
+  const s  = el && el.closest('.a-slot');
+  if (s && !s.classList.contains('locked') && !s.classList.contains('filled')) {
+    dropToSlot(parseInt(s.dataset.idx));
+  }
+  touchColorId = null;
+});
+function moveTGhost(t) { tGhost.style.left = t.clientX + 'px'; tGhost.style.top = t.clientY + 'px'; }
+function highlightSlot(t) {
+  clearDragHighlights();
+  const el = document.elementFromPoint(t.clientX, t.clientY);
+  const s  = el && el.closest('.a-slot');
+  if (s && !s.classList.contains('locked') && !s.classList.contains('filled')) s.classList.add('drag-over');
+}
+function clearDragHighlights() { document.querySelectorAll('.a-slot.drag-over').forEach(e => e.classList.remove('drag-over')); }
+
+// ═══════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════
+function shuffleArr(arr) {
+  for (let i = arr.length-1; i > 0; i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [arr[i],arr[j]] = [arr[j],arr[i]];
+  }
+  return arr;
+}
+
+// ═══════════════════════════════════════════════════════
+// START
+// ═══════════════════════════════════════════════════════
+buildIntroBottles();
+startNormalLevel(0);
+</script>
+</body>
+</html>
