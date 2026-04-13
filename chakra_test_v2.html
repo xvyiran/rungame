@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>脉轮能量测评</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;600&family=Noto+Sans+SC:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #1c1a18;
+  --ink-2: #4a4642;
+  --ink-3: #8c8680;
+  --surface: #faf8f4;
+  --surface-2: #f2efe9;
+  --surface-3: #e8e4dc;
+  --line: #ddd8cf;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Noto Sans SC', sans-serif;
+  background: var(--surface);
+  color: var(--ink);
+  min-height: 100vh;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+/* ── COVER ── */
+#cover {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+#cover::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 60% at 50% 40%, #f0ebe0 0%, var(--surface) 70%);
+  z-index: 0;
+}
+.cover-inner { position: relative; z-index: 1; max-width: 520px; }
+.cover-eyebrow {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 11px;
+  letter-spacing: .25em;
+  color: var(--ink-3);
+  margin-bottom: 2rem;
+  text-transform: uppercase;
+}
+.cover-title {
+  font-family: 'Noto Serif SC', serif;
+  font-size: clamp(2.2rem, 6vw, 3.2rem);
+  font-weight: 300;
+  line-height: 1.25;
+  margin-bottom: 1.5rem;
+  color: var(--ink);
+  letter-spacing: .02em;
+}
+.cover-sub {
+  font-size: 14px;
+  color: var(--ink-2);
+  line-height: 1.8;
+  margin-bottom: 2.5rem;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.chakra-dots {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 3rem;
+}
+.chakra-dots span {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  opacity: .75;
+}
+.btn-start {
+  display: inline-block;
+  padding: 14px 44px;
+  background: var(--ink);
+  color: var(--surface);
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: .08em;
+  border: none;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: opacity .2s;
+}
+.btn-start:hover { opacity: .8; }
+.cover-note {
+  margin-top: 1.5rem;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+/* ── QUIZ ── */
+#quiz { display: none; max-width: 680px; margin: 0 auto; padding: 2rem 1.5rem 5rem; }
+
+.progress-wrap { margin-bottom: 2.5rem; }
+.progress-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: .6rem;
+}
+.progress-chakra {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 18px;
+  font-weight: 400;
+  color: var(--ink);
+}
+.progress-count { font-size: 12px; color: var(--ink-3); }
+.progress-track {
+  height: 2px;
+  background: var(--line);
+  border-radius: 1px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 2px;
+  border-radius: 1px;
+  transition: width .4s ease;
+}
+.chakra-eng {
+  font-size: 11px;
+  letter-spacing: .15em;
+  color: var(--ink-3);
+  margin-top: .25rem;
+  text-transform: uppercase;
+}
+
+.q-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1.4rem 1.6rem;
+  margin-bottom: .75rem;
+  transition: border-color .15s;
+}
+.q-card.answered { border-color: var(--surface-3); }
+.q-text {
+  font-size: 14px;
+  color: var(--ink);
+  line-height: 1.7;
+  margin-bottom: 1rem;
+}
+.q-scale {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+.scale-label {
+  font-size: 10px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  flex-shrink: 0;
+  width: 52px;
+  line-height: 1.3;
+}
+.scale-label.r { text-align: right; }
+.scale-btns {
+  display: flex;
+  flex: 1;
+  justify-content: center;
+  gap: 6px;
+}
+.sb {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-3);
+  transition: all .12s;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Noto Sans SC', sans-serif;
+}
+.sb:hover { border-color: var(--ink-3); color: var(--ink); background: var(--surface-2); }
+.sb.on { color: #fff; border-color: transparent; }
+
+.nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 2rem;
+}
+.nav-info { font-size: 12px; color: var(--ink-3); }
+.nav-info b { color: var(--ink); font-weight: 500; }
+.nav-btns { display: flex; gap: 10px; }
+.btn {
+  padding: 10px 26px;
+  border: 1px solid var(--line);
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  border-radius: 2px;
+  transition: all .15s;
+  font-family: 'Noto Sans SC', sans-serif;
+}
+.btn:hover { background: var(--surface-2); }
+.btn:disabled { opacity: .3; cursor: not-allowed; }
+.btn.primary { background: var(--ink); color: var(--surface); border-color: transparent; }
+.btn.primary:hover { opacity: .85; }
+.btn.ghost { border-color: transparent; color: var(--ink-3); }
+.btn.ghost:hover { color: var(--ink); background: var(--surface-2); }
+
+/* ── RESULT ── */
+#result { display: none; max-width: 680px; margin: 0 auto; padding: 2rem 1.5rem 5rem; }
+
+.result-header { text-align: center; padding: 2rem 0 2.5rem; }
+.result-title {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 26px;
+  font-weight: 300;
+  margin-bottom: .4rem;
+}
+.result-sub { font-size: 13px; color: var(--ink-3); }
+
+.chakra-result {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: .75rem;
+}
+.cr-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: .85rem;
+}
+.cr-name {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 16px;
+  font-weight: 400;
+}
+.cr-state {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 2px;
+}
+.state-low { background: #EBF5FB; color: #1A5276; }
+.state-ok { background: #EAFAF1; color: #1E6832; }
+.state-high { background: #FDEDEC; color: #922B21; }
+
+/* Bipolar bar */
+.bipolar-wrap { position: relative; }
+.bipolar-track {
+  height: 8px;
+  background: var(--surface-2);
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+}
+.bipolar-center {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 1px;
+  height: 100%;
+  background: var(--line);
+  z-index: 2;
+}
+.bipolar-fill {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-radius: 4px;
+  transition: width 1.2s cubic-bezier(.4,0,.2,1), left 1.2s cubic-bezier(.4,0,.2,1);
+}
+.bipolar-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: .35rem;
+}
+.bipolar-label { font-size: 10px; color: var(--ink-3); }
+.bipolar-score {
+  text-align: center;
+  font-size: 12px;
+  color: var(--ink-2);
+  margin-top: .2rem;
+}
+
+.cr-desc {
+  margin-top: .85rem;
+  padding-top: .85rem;
+  border-top: 1px solid var(--surface-2);
+  font-size: 13px;
+  color: var(--ink-2);
+  line-height: 1.7;
+}
+
+.result-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 2.5rem;
+}
+
+/* summary overview */
+.overview-card {
+  background: var(--surface-2);
+  border-radius: 4px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  text-align: center;
+}
+.ov-item {}
+.ov-dot {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  margin: 0 auto .4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+.ov-name { font-size: 10px; color: var(--ink-3); margin-bottom: .2rem; line-height: 1.2; }
+.ov-score { font-size: 11px; font-weight: 500; }
+
+@media (max-width: 520px) {
+  .scale-btns { gap: 4px; }
+  .sb { width: 30px; height: 30px; font-size: 11px; }
+  .scale-label { width: 42px; font-size: 9px; }
+  .overview-card { grid-template-columns: repeat(4, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<!-- COVER -->
+<div id="cover">
+  <div class="cover-inner">
+    <div class="cover-eyebrow">能量中心评估</div>
+    <h1 class="cover-title">脉轮<br>能量测评</h1>
+    <p class="cover-sub">56 道题目，测量你七个脉轮的活跃状态。<br>每个脉轮将呈现「不足」「平衡」「过度」三种结果，<br>帮助你看清能量流动的真实状况。</p>
+    <div class="chakra-dots">
+      <span style="background:#C0392B"></span>
+      <span style="background:#D35400"></span>
+      <span style="background:#B7950B"></span>
+      <span style="background:#1E8449"></span>
+      <span style="background:#1A6FA8"></span>
+      <span style="background:#5B2C6F"></span>
+      <span style="background:#7D3C98"></span>
+    </div>
+    <button class="btn-start" onclick="startTest()">开始测评</button>
+    <p class="cover-note">约需 10 分钟 · 请依照当下真实感受作答</p>
+  </div>
+</div>
+
+<!-- QUIZ -->
+<div id="quiz"></div>
+
+<!-- RESULT -->
+<div id="result"></div>
+
+<script>
+var CH = [
+  {name:'海底轮', eng:'Root Chakra', col:'#C0392B', bg:'#FAEDEC', sym:'▼',
+   low:'你的海底轮能量偏低。你可能容易感到不安、缺乏归属感，或与自己的身体脱节。建议：赤脚接地、规律作息、山式站立冥想。',
+   ok:'你的海底轮较为平衡。你能感受到基本的安全感和归属感，在大多数环境中都能安定下来。',
+   high:'你的海底轮能量偏强。你可能对物质安全过度执着，或表现出强烈的领地感和抗拒变化的倾向。建议：练习放手与信任，减少囤积行为。'},
+  {name:'骶轮', eng:'Sacral Chakra', col:'#D35400', bg:'#FEF0E7', sym:'◎',
+   low:'你的骶轮能量偏低。你可能情感上比较封闭，难以自然表达感受，或对亲密关系感到不自在。建议：流动类运动、创意表达、感受身体的愉悦。',
+   ok:'你的骶轮较为平衡。你能自然流露情感，享受创造和亲密，情绪起伏在可控范围内。',
+   high:'你的骶轮能量偏强。你可能情绪波动较大，容易对他人过度依附，或感官欲望难以自控。建议：冥想觉察情绪，练习情感界限。'},
+  {name:'太阳神经丛', eng:'Solar Plexus', col:'#B7950B', bg:'#FEF9E7', sym:'△',
+   low:'你的太阳神经丛能量偏低。你可能比较被动、优柔寡断，在群体中难以主张自己的需求。建议：核心力量训练、练习说"不"、设立小目标并完成它。',
+   ok:'你的太阳神经丛较为平衡。你能在群体中自信地表达自己，做决定时相对果断，有健康的自尊感。',
+   high:'你的太阳神经丛能量偏强。你可能表现出支配欲或攻击性，难以接受他人的主导。建议：练习倾听与协作，觉察控制欲的来源。'},
+  {name:'心轮', eng:'Heart Chakra', col:'#1E8449', bg:'#EAFAF1', sym:'✦',
+   low:'你的心轮能量偏低。你可能在情感上比较疏离，难以给予或接受爱与关怀。建议：感恩练习、允许自己被关心、拥抱大自然。',
+   ok:'你的心轮较为平衡。你能自然地给予和接受爱，在关系中保持温暖而不失边界。',
+   high:'你的心轮能量偏强。你可能在关系中过度付出或有窒息感，难以保持健康的边界。建议：练习自我关爱，学习区分爱与控制。'},
+  {name:'喉轮', eng:'Throat Chakra', col:'#1A6FA8', bg:'#EBF5FB', sym:'◈',
+   low:'你的喉轮能量偏低。你可能比较沉默内向，难以真实表达自己的想法和感受。建议：唱歌、朗读、在安全关系中练习直接表达。',
+   ok:'你的喉轮较为平衡。你能清晰表达自己，说话诚实，也能在需要时保持沉默和倾听。',
+   high:'你的喉轮能量偏强。你可能话语较多，习惯主导对话，有时会用语言来控制或保持距离。建议：练习沉默和深度倾听。'},
+  {name:'眉心轮', eng:'Third Eye', col:'#5B2C6F', bg:'#F5EEF8', sym:'◉',
+   low:'你的眉心轮能量偏低。你可能过度依赖他人或权威的判断，思维比较固化。建议：冥想、写直觉日记、练习独立做判断。',
+   ok:'你的眉心轮较为平衡。你有良好的洞察力和直觉，能独立思考，也能保持开放的心态。',
+   high:'你的眉心轮能量偏强。你可能过度活在内心世界或幻想中，有时难以区分直觉和投射。建议：多接触现实，规律的体力活动有助接地。'},
+  {name:'顶轮', eng:'Crown Chakra', col:'#7D3C98', bg:'#F8F0FE', sym:'✺',
+   low:'你的顶轮能量偏低。你可能对灵性或存在意义缺乏感知，思维方式较为固定。建议：冥想、阅读、在大自然中静坐，培养开放的觉知。',
+   ok:'你的顶轮较为平衡。你对生命有一定的整体感，能保持开放的觉知，不执着于单一观点。',
+   high:'你的顶轮能量偏强。你可能过度关注灵性而忽视身体和日常需求，或有时感觉自己获得了独特的洞见。建议：扎根练习，关注身体。'},
+];
+
+// 每脉轮8题: [题目, 方向] 0=不足信号, 1=过度信号
+var QQ = [
+  // 海底轮
+  [['我容易感到莫名的恐惧或焦虑，即使环境中没有明确的威胁。',0],
+   ['我在很多地方都感到格格不入，很难有归属感。',0],
+   ['我感觉自己与自己的身体脱节，很少关注身体发出的信号。',0],
+   ['我对日常生活缺乏安全感，总觉得脚下的土地不够稳固。',0],
+   ['我对金钱和物质安全有持续的执念，无法放松对财富的控制。',1],
+   ['我非常抗拒变化，哪怕是小的日常改变也会让我感到威胁。',1],
+   ['我有强烈的领地感，很难与别人共享空间或资源。',1],
+   ['我花大量精力囤积物品或积累财富，即使已经足够也停不下来。',1]],
+  // 骶轮
+  [['我的情感表达比较克制，别人常说我冷漠或面无表情。',0],
+   ['我对亲密关系感到不自在，倾向于在情感上与他人保持距离。',0],
+   ['我很少感受到强烈的情绪起伏，生活对我来说大多是平淡的。',0],
+   ['我对创意活动、娱乐或单纯的快乐几乎提不起兴趣。',0],
+   ['我的情绪波动非常剧烈，容易被情绪完全淹没。',1],
+   ['我对他人有强烈的情感依附，独处对我来说很困难。',1],
+   ['我的感官欲望（食欲、性欲等）非常强烈，有时难以自控。',1],
+   ['我很容易卷入戏剧性的情感状况，生活中常有情绪风暴。',1]],
+  // 太阳神经丛
+  [['做决定时我常常犹豫不决，需要别人来帮我拿主意。',0],
+   ['在群体中我很少主动发言，也不习惯坚持自己的立场。',0],
+   ['我很难拒绝别人的要求，即使对我自己明显不利。',0],
+   ['我常常感觉自己没有力量去影响或改变周围的事情。',0],
+   ['我习惯于掌控局面，很难让别人带领或做主。',1],
+   ['当事情不按我的方式发展时，我会变得愤怒或强硬对抗。',1],
+   ['别人常说我太强势或咄咄逼人，让他们感到压力。',1],
+   ['我在群体中有支配他人的冲动，很难退居其后。',1]],
+  // 心轮
+  [['我在情感上与他人保持距离，不轻易表达关爱或温柔。',0],
+   ['接受别人的关心和好意让我感到不自在。',0],
+   ['对于陌生人或不熟的人，我很少自然地感到同情或关心。',0],
+   ['在关系中我倾向于保持冷静理性，而非温暖和情感投入。',0],
+   ['我给予他人的爱和关注常常超出对方的承受程度。',1],
+   ['在亲密关系中我有强烈的控制欲，很难给对方空间。',1],
+   ['我对他人的需求过于敏感，常常忘记自己的需求。',1],
+   ['我很难在关系中划清界限，常常被他人的情绪和问题所淹没。',1]],
+  // 喉轮
+  [['在公开场合或群体中，我很少主动开口说话。',0],
+   ['我常常说一些不是自己真实想法的话，为了迎合他人或避免冲突。',0],
+   ['我有很多想法和感受，但很难找到合适的语言表达出来。',0],
+   ['在需要表态的时候，我常常选择沉默或给出模糊的回应。',0],
+   ['我说话的量明显多于周围大多数人，很难停下来。',1],
+   ['在对话中我常常打断别人，或急于插入自己的观点。',1],
+   ['我用说话来主导和控制谈话走向，不太愿意真正倾听。',1],
+   ['别人有时反映我说话太多，或让他们感到压迫。',1]],
+  // 眉心轮
+  [['做决定时我高度依赖他人的意见或外部权威，很难相信自己的判断。',0],
+   ['我的思维比较固化，很难接受与现有信念相矛盾的观点。',0],
+   ['我几乎不信任直觉或预感，只相信可以被验证的具体事实。',0],
+   ['面对复杂情况时，我很容易感到困惑，难以形成清晰的判断。',0],
+   ['我有非常活跃的内心世界，常常沉浸在想象或幻想之中。',1],
+   ['我有时会经历一些超出日常现实范畴的感知或体验。',1],
+   ['我的直觉信号非常强烈，有时难以区分真实的洞察和自己的投射。',1],
+   ['我在内心世界中花的时间远多于实际的现实互动。',1]],
+  // 顶轮
+  [['我对生命更深层的意义或灵性维度几乎没有兴趣。',0],
+   ['我的思维方式非常固定，很少对自己的既有信仰提出质疑。',0],
+   ['我感觉自己与更广大的世界或生命整体是割裂和孤立的。',0],
+   ['我几乎不冥想或安静地反思，很难进入内在平静的状态。',0],
+   ['我花大量时间在灵性追求上，有时忽视了日常生活的基本需要。',1],
+   ['我有时感觉自己获得了别人无法理解的深刻洞见。',1],
+   ['我对身体的信号和物质层面的需求很少关注，觉得这些不重要。',1],
+   ['我在分析和思考时容易过度，把简单的事情复杂化。',1]],
+];
+
+var S = { step: 0, ans: QQ.map(function(q){ return new Array(q.length).fill(null); }) };
+
+function startTest() {
+  document.getElementById('cover').style.display = 'none';
+  document.getElementById('quiz').style.display = 'block';
+  renderQuiz();
+  window.scrollTo(0,0);
+}
+
+function renderQuiz() {
+  var ci = S.step, c = CH[ci], qs = QQ[ci], as = S.ans[ci];
+  var filled = as.filter(function(a){ return a !== null; }).length;
+  var total_q = QQ.reduce(function(t,q){ return t+q.length; }, 0);
+  var done_q = S.ans.slice(0, ci).reduce(function(t,a){ return t+a.filter(function(x){ return x!==null; }).length; }, 0) + filled;
+  var pct_global = Math.round(done_q / total_q * 100);
+  var done = as.every(function(a){ return a !== null; });
+
+  var qhtml = qs.map(function(item, qi) {
+    var val = as[qi];
+    var rbs = [0,1,2,3,4,5].map(function(v) {
+      return '<button class="sb'+(val===v?' on':'')+'"'+(val===v?' style="background:'+c.col+'"':'')+
+             ' onclick="pick('+qi+','+v+')" title="'+v+'">'+v+'</button>';
+    }).join('');
+    return '<div class="q-card'+(val!==null?' answered':'')+'">'+
+           '<div class="q-text">'+(qi+1)+'. '+item[0]+'</div>'+
+           '<div class="q-scale">'+
+           '<div class="scale-label">完全<br>没有</div>'+
+           '<div class="scale-btns">'+rbs+'</div>'+
+           '<div class="scale-label r">感觉<br>强烈</div>'+
+           '</div></div>';
+  }).join('');
+
+  var prevBtn = ci > 0 ? '<button class="btn ghost" onclick="prevStep()">← 上一组</button>' : '';
+  var nextLabel = ci === 6 ? '查看结果 →' : '下一组 →';
+  var nextClass = ci === 6 ? 'btn primary' : 'btn';
+
+  document.getElementById('quiz').innerHTML =
+    '<div class="progress-wrap">'+
+    '<div class="progress-meta">'+
+    '<div><div class="progress-chakra">'+c.sym+' '+c.name+'</div>'+
+    '<div class="chakra-eng">'+c.eng+'</div></div>'+
+    '<div class="progress-count">第 '+(ci+1)+' / 7 组 &nbsp;·&nbsp; 总进度 '+pct_global+'%</div>'+
+    '</div>'+
+    '<div class="progress-track"><div class="progress-fill" style="width:'+pct_global+'%;background:'+c.col+'"></div></div>'+
+    '</div>'+
+    qhtml+
+    '<div class="nav">'+
+    '<div class="nav-info">本组已作答 <b>'+filled+'</b> / '+qs.length+' 题</div>'+
+    '<div class="nav-btns">'+prevBtn+
+    '<button class="'+nextClass+'" '+(done?'':'disabled')+' onclick="nextStep()">'+nextLabel+'</button>'+
+    '</div></div>';
+}
+
+function pick(qi, val) {
+  S.ans[S.step][qi] = val;
+  renderQuiz();
+}
+
+function nextStep() {
+  if (S.step < 6) { S.step++; renderQuiz(); window.scrollTo(0,0); }
+  else showResult();
+}
+
+function prevStep() {
+  if (S.step > 0) { S.step--; renderQuiz(); window.scrollTo(0,0); }
+}
+
+function calcScore(ci) {
+  var qs = QQ[ci], as = S.ans[ci];
+  var lowSum = 0, highSum = 0, lowMax = 0, highMax = 0;
+  qs.forEach(function(q, i) {
+    if (q[1] === 0) { lowSum += as[i]; lowMax += 5; }
+    else { highSum += as[i]; highMax += 5; }
+  });
+  // net score: positive = over-active, negative = under-active
+  // normalize: (highSum/highMax - lowSum/lowMax) * 100
+  var score = ((highSum / highMax) - (lowSum / lowMax)) * 100;
+  return Math.round(score);
+}
+
+function getState(score) {
+  if (score <= -20) return 'low';
+  if (score >= 20) return 'high';
+  return 'ok';
+}
+
+function stateLabel(state) {
+  if (state === 'low') return ['不足', 'state-low'];
+  if (state === 'high') return ['过度活跃', 'state-high'];
+  return ['平衡', 'state-ok'];
+}
+
+function showResult() {
+  document.getElementById('quiz').style.display = 'none';
+  document.getElementById('result').style.display = 'block';
+  window.scrollTo(0,0);
+
+  var scores = CH.map(function(_,i){ return calcScore(i); });
+
+  // Overview row
+  var ovHtml = scores.map(function(sc, i) {
+    var c = CH[i], st = getState(sc);
+    var dotBg = st === 'ok' ? c.col : (st === 'low' ? c.col+'33' : c.col);
+    var dotBorder = st === 'low' ? '2px solid '+c.col : 'none';
+    var scoreColor = st === 'low' ? '#1A5276' : (st === 'high' ? '#922B21' : '#1E6832');
+    return '<div class="ov-item">'+
+      '<div class="ov-dot" style="background:'+dotBg+';border:'+dotBorder+'">'+c.sym+'</div>'+
+      '<div class="ov-name">'+c.name+'</div>'+
+      '<div class="ov-score" style="color:'+scoreColor+'">'+(sc>0?'+':'')+sc+'%</div>'+
+      '</div>';
+  }).join('');
+
+  // Detailed rows
+  var detailHtml = scores.map(function(sc, i) {
+    var c = CH[i], st = getState(sc), sl = stateLabel(st);
+    var pctAbs = Math.abs(sc);
+    var isNeg = sc < 0;
+    // bar: center at 50%, extends left (low) or right (high)
+    var barLeft = isNeg ? (50 - pctAbs/2)+'%' : '50%';
+    var barWidth = (pctAbs/2)+'%';
+    var barColor = isNeg ? '#1A5276' : c.col;
+    var desc = st === 'low' ? c.low : (st === 'high' ? c.high : c.ok);
+
+    return '<div class="chakra-result">'+
+      '<div class="cr-top">'+
+      '<span class="cr-name">'+c.sym+' '+c.name+'</span>'+
+      '<span class="cr-state '+sl[1]+'">'+sl[0]+'</span>'+
+      '</div>'+
+      '<div class="bipolar-wrap">'+
+      '<div class="bipolar-track">'+
+      '<div class="bipolar-center"></div>'+
+      '<div class="bipolar-fill" style="left:'+barLeft+';width:0%;background:'+barColor+'" data-w="'+barWidth+'"></div>'+
+      '</div>'+
+      '<div class="bipolar-labels"><span class="bipolar-label">← 不足</span><span class="bipolar-label">过度 →</span></div>'+
+      '<div class="bipolar-score">'+(sc>0?'+':'')+sc+'%</div>'+
+      '</div>'+
+      '<div class="cr-desc">'+desc+'</div>'+
+      '</div>';
+  }).join('');
+
+  document.getElementById('result').innerHTML =
+    '<div class="result-header">'+
+    '<div class="result-title">你的脉轮能量报告</div>'+
+    '<div class="result-sub">±20% 以内为平衡区间 · 负值偏不足 · 正值偏过度</div>'+
+    '</div>'+
+    '<div class="overview-card">'+ovHtml+'</div>'+
+    detailHtml+
+    '<div class="result-actions">'+
+    '<button class="btn ghost" onclick="restart()">重新测评</button>'+
+    '</div>';
+
+  setTimeout(function() {
+    document.querySelectorAll('.bipolar-fill[data-w]').forEach(function(el) {
+      el.style.width = el.dataset.w;
+    });
+  }, 80);
+}
+
+function restart() {
+  S.step = 0;
+  S.ans = QQ.map(function(q){ return new Array(q.length).fill(null); });
+  document.getElementById('result').style.display = 'none';
+  document.getElementById('cover').style.display = 'flex';
+  window.scrollTo(0,0);
+}
+</script>
+</body>
+</html>
