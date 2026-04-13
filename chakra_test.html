@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>脉轮平衡测试</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;background:#faf9f7;color:#1a1a1a;min-height:100vh}
+#app{max-width:600px;margin:0 auto;padding:1.5rem 1rem 5rem}
+
+/* Start */
+.sh{text-align:center;padding:2.5rem 0 2rem}
+.sh-t{font-size:24px;font-weight:600;margin-bottom:.5rem}
+.sh-d{font-size:14px;color:#666;line-height:1.7;max-width:360px;margin:0 auto 2rem}
+.vg{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.vc{background:#fff;border:1px solid #e8e5e0;border-radius:14px;padding:1.25rem 1rem;cursor:pointer;transition:all .15s;text-align:left}
+.vc:hover{background:#f5f3ef;border-color:#ccc}
+.ve{font-size:26px;margin-bottom:.5rem}
+.vt{font-size:15px;font-weight:600;margin-bottom:.3rem}
+.vd{font-size:12px;color:#777;line-height:1.5}
+
+/* Quiz */
+.pg{height:4px;background:#ece9e4;border-radius:2px;margin-bottom:2rem}
+.pf{height:4px;border-radius:2px;transition:width .5s ease}
+.ch{text-align:center;margin-bottom:1.5rem}
+.ci{width:60px;height:60px;border-radius:50%;margin:0 auto .75rem;display:flex;align-items:center;justify-content:center;font-size:22px}
+.cn{font-size:20px;font-weight:600;margin-bottom:.25rem}
+.cs{font-size:12px;color:#888}
+.vb{display:inline-block;font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid #ddd;color:#999;margin-bottom:1.1rem}
+.qb{background:#fff;border:1px solid #ece9e4;border-radius:14px;padding:1rem 1.2rem;margin-bottom:.7rem;transition:border-color .15s}
+.qb.ok{border-color:#bbb}
+.qt{font-size:13.5px;color:#1a1a1a;line-height:1.65;margin-bottom:.8rem}
+.rr{display:flex;align-items:center;gap:6px}
+.rl{font-size:10px;color:#aaa;width:50px;line-height:1.3;flex-shrink:0}
+.rl.r{text-align:right}
+.rbw{display:flex;gap:5px;flex:1;justify-content:center}
+.rb{width:34px;height:34px;border-radius:50%;border:1px solid #ddd;background:transparent;cursor:pointer;font-size:13px;font-weight:500;color:#888;transition:all .12s;display:flex;align-items:center;justify-content:center}
+.rb:hover{background:#f5f3ef}
+.rb.on{color:#fff;border-color:transparent}
+.nv{display:flex;justify-content:space-between;align-items:center;margin-top:1.75rem}
+.ni{font-size:13px;color:#888}
+.ni b{color:#1a1a1a;font-weight:600}
+.nbtns{display:flex;gap:8px}
+.btn{padding:10px 24px;border-radius:10px;border:1px solid #ddd;background:transparent;cursor:pointer;font-size:13px;font-weight:500;color:#1a1a1a;transition:all .15s}
+.btn:hover{background:#f5f3ef}
+.btn:disabled{opacity:.3;cursor:not-allowed}
+.btn.p{background:#1a1a1a;color:#fff;border-color:transparent}
+.btn.p:hover{opacity:.85}
+.btn.g{border-color:transparent;color:#888}
+.btn.g:hover{background:#f5f3ef;color:#1a1a1a}
+
+/* Result */
+.rth{text-align:center;padding:1.75rem 0 1.5rem}
+.rt{font-size:22px;font-weight:600;margin-bottom:.35rem}
+.rsub{font-size:14px;color:#666}
+.rv{font-size:12px;color:#aaa;margin-top:.25rem}
+.crow{display:flex;align-items:center;gap:12px;margin-bottom:.9rem}
+.cdot{width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px}
+.cbd{flex:1;min-width:0}
+.ctop{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}
+.cname{font-size:13px;font-weight:600}
+.cst{font-size:11px}
+.cbg{height:8px;background:#ece9e4;border-radius:4px;overflow:hidden}
+.cbar{height:8px;border-radius:4px;width:0;transition:width 1.2s cubic-bezier(.4,0,.2,1)}
+.sep{height:1px;background:#ece9e4;margin:1.5rem 0}
+.ig{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1.1rem}
+.icard{background:#f5f3ef;border-radius:14px;padding:1rem 1.1rem}
+.ilb{font-size:11px;color:#888;margin-bottom:.25rem}
+.iv{font-size:15px;font-weight:600;margin-bottom:.15rem}
+.ip{font-size:12px;color:#888}
+.tip{background:#f5f3ef;border-radius:14px;padding:1.1rem 1.25rem;margin-bottom:.75rem}
+.tip h4{font-size:12px;font-weight:600;color:#888;margin-bottom:.6rem;letter-spacing:.04em}
+.tip p{font-size:13.5px;color:#555;line-height:1.7}
+.rbr{display:flex;justify-content:center;gap:10px;margin-top:1.75rem}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+var CH=[
+  {name:'海底轮',eng:'Root Chakra',col:'#C0392B',bg:'#FAEDEC',sym:'▼',pos:'脊柱根部 · 土元素'},
+  {name:'骶轮',eng:'Sacral Chakra',col:'#D35400',bg:'#FEF0E7',sym:'◎',pos:'下腹部 · 水元素'},
+  {name:'太阳神经丛',eng:'Solar Plexus',col:'#B7950B',bg:'#FEF9E7',sym:'△',pos:'上腹部 · 火元素'},
+  {name:'心轮',eng:'Heart Chakra',col:'#1E8449',bg:'#EAFAF1',sym:'✦',pos:'胸部中央 · 风元素'},
+  {name:'喉轮',eng:'Throat Chakra',col:'#1A6FA8',bg:'#EBF5FB',sym:'◈',pos:'喉咙 · 空元素'},
+  {name:'眉心轮',eng:'Third Eye',col:'#5B2C6F',bg:'#F5EEF8',sym:'◉',pos:'两眉之间 · 光元素'},
+  {name:'顶轮',eng:'Crown Chakra',col:'#7D3C98',bg:'#F8F0FE',sym:'✺',pos:'头顶 · 纯粹觉知'}
+];
+
+var QP=[
+  [['即使生活中出现意外，我通常能在短时间内重新找回节奏。',0],['我能明确说出自己需要什么样的生活，并在朝那个方向行动。',0],['我常常莫名感到不安，即使外部环境没有明显威胁。',1],['即使不缺钱，我也会频繁担忧财务或基本生活的稳定。',1],['别人改变了我熟悉的日常安排时，我会感到强烈不适或愤怒。',1],['遇到重大变化时，我的第一反应更接近"相信自己能应对"，而非"感到恐慌想逃"。',0],['想到未来十年，我感受到的更多是期待，而非无法名状的恐惧。',0]],
+  [['我能觉察自己当下的情绪，并允许它存在，而不是立刻压制或转移注意力。',0],['某些活动（烹饪、写作、绘画等）能让我进入纯粹投入的状态。',0],['享受"没有目的的快乐"对我来说很困难，总觉得应该做"有用"的事。',1],['我的情绪要么长时间麻木，要么突然爆发，中间几乎没有缓冲。',1],['别人表达强烈情绪时，我不知道如何回应，会感到不舒服或想回避。',1],['有一个新想法冒出来时，我通常会想办法尝试，而不是很快觉得"算了没意义"。',0],['回想近一个月，真正放松、享受当下的时刻极少出现。',1]],
+  [['面对我不认同的观点，我能清晰表达异议，不必担心对方的反应。',0],['我对自己的选择负责，不常把结果归咎于运气或他人。',0],['需要做决定时，我常常反复拖延，害怕选错。',1],['别人对我表达失望时，我会感到强烈内疚，甚至违心改变自己的立场。',1],['做完某件事后，我常常长时间怀疑"自己是否足够好"。',1],['有人在公开场合批评我的工作，我更可能冷静说明立场，而非羞愧沉默或过度道歉。',0],['我主动发起或主导事情的频率，比等待别人安排要高。',0]],
+  [['朋友遇到困难时，我能陪伴他们，而不是急着给出解决方案。',0],['我能接受别人的帮助和关心，不会感到"欠了对方"而不安。',0],['在亲密关系中，我要么过度付出，要么总是保持距离，很难找到中间状态。',1],['过去某些伤害或背叛，至今仍在影响我对现在关系的信任。',1],['我常常觉得自己对别人好，却很少被同等对待，有强烈的付出不对等感。',1],['与亲近的人发生冲突后，我通常能在合理时间内主动修复，而不是长期冷战或反复回想。',0],['独处时，我能享受自己的陪伴，而不是感到空洞或必须找人填满。',0]],
+  [['我能比较自然地说出"我不想做这件事"，而不需要绕很多弯子。',0],['我说的话和真实想法通常一致，很少因为场合不同说出自己不认同的话。',0],['需要发言的场合，我常常有话想说，但最终选择沉默。',1],['事后我经常后悔没有说某句话，或懊恼说了不该说的。',1],['别人误解我时，我通常不会立刻澄清，而是选择忍受。',1],['朋友请我帮一个我不想做的忙，我更可能直接说明无法帮忙，而非勉强答应后感到不舒服。',0],['我表达自己的方式常常被误解，需要多次解释才能让人明白我的意思。',1]],
+  [['在没有充分数据时，我常常能感受到一件事的走向，事后大致准确。',0],['我能区分"直觉"和"焦虑"——它们在我身体里的感受是不同的。',0],['我很难长时间专注一件事，思绪容易游走跳跃。',1],['做了决定之后，我仍然长时间怀疑自己的判断，反复动摇。',1],['我很难看清一段关系或一个人的真实状态，通常事后才"恍然大悟"。',1],['对某件事有强烈的"感觉"但缺乏理由时，我倾向于认真对待这个信号，而不是等待"证据"才行动。',0],['我能察觉到房间里未被说出口的情绪或紧张感，而不只是听到表面话语。',0]],
+  [['我对自己存在的意义有模糊但真实的感知，不完全依赖外部定义。',0],['在平静时刻，我能体验到"一切都恰好"的感觉，哪怕生活并不完美。',0],['我常常感到生活失去意义，不知道自己真正想要什么。',1],['思维总在过去和未来之间游荡，很难真正"活在当下"。',1],['面对死亡、无常等话题，我会强烈回避，或感到难以承受的恐惧。',1],['独处、远离手机和娱乐时，我能享受这种宁静，而不是感到必须立刻填满时间。',0],['我的价值观和行为是一致的，很少为了符合他人期待而做出自己不认同的选择。',0]]
+];
+
+var QB=[
+  [['我的腰部、骶骨、髋关节或腿脚经常感到沉重、酸痛或无力。',1],['我有便秘或消化迟缓的问题，排便不规律。',1],['我有积累、囤积物品的倾向，即使明知不需要也难以丢弃。',1],['我的脚和腿经常冰冷，即使天气并不冷。',1],['席地而坐时，我能感受到身体与地面之间踏实的接触感，而不是急着想站起来。',0],['赤脚踩在土地或草地上，我能感受到一种安定感通过脚底传入身体。',0],['我对气味的感知比较迟钝，常常注意不到环境中明显的气味变化。',1]],
+  [['我的下腹部（肚脐以下）经常感到紧绷、坠痛或麻木。',1],['我有下腹部周期性不适，或性欲长期显著低落或过旺的情况。',1],['面对意外变化，我的身体第一反应是僵硬——肩膀收紧，呼吸变浅。',1],['我的味觉比较迟钝，很难细细品味食物的层次和细节。',1],['在水边（海洋、河流、泡澡）时，我能感受到一种特别的放松和流动感。',0],['跟随音乐自然移动身体时，我感到自在，而不是尴尬或僵硬。',0],['我常感到身体某个部位有"说不清的堵塞感"，但检查不出明确原因。',1]],
+  [['我的胃部经常感到紧张、灼热或不适，尤其在压力来临时。',1],['我容易疲惫，但又难以真正休息，总处于一种"低功率运转"的状态。',1],['情绪波动时，我的胃部或消化系统会随之出现明显反应。',1],['饭后我常常感到沉重或需要立刻休息，消化似乎耗费很大能量。',1],['晒太阳对我有明显的能量提振效果，我能感受到阳光的温暖和活力传入身体。',0],['我的体温调节比较好，不比周围人更明显地怕冷或怕热。',0],['我对强光或密集视觉刺激特别敏感，容易感到不适或头晕。',1]],
+  [['我有胸口发紧、呼吸浅短或频繁叹气的习惯。',1],['我的肩膀和上背部经常紧张酸痛，情绪压力大时尤其明显。',1],['别人走近或触碰我时，我的身体会不由自主地轻微退缩或紧绷。',1],['我的呼吸通常比较浅，很少自然地进行腹式呼吸。',1],['深呼吸时，我能感受到胸口有一种扩展和敞开的感觉。',0],['拥抱或握手对我有明显的安抚作用，让身体感到更安全。',0],['在森林或花园中，我能明显感到心情开阔，身体的紧张感消散。',0]],
+  [['我容易喉咙发紧、频繁清嗓，或有慢性咽喉不适。',1],['我的颈部和肩颈经常僵硬，转动头部时活动范围受限。',1],['唱歌或大声说话时，我感到喉咙里有什么被"卡住"，声音难以自然发出。',1],['我对噪音特别敏感，嘈杂环境让我身体紧绷，迅速感到疲惫。',1],['真实说出一件重要事情之后，我的身体会感到一种释放和轻松。',0],['音乐（尤其是人声或吟唱）在我身体里有明显的振动和共鸣感。',0],['长时间沉默后，我说话时感到困难，或声音容易沙哑。',1]],
+  [['我经常头痛，部位集中在额头、眉心或太阳穴。',1],['我的睡眠质量差，难以进入深度睡眠，或梦境混乱难以记忆。',1],['在视觉信息过多的环境（繁忙街道、多屏幕）中，我很快感到头脑过载。',1],['我的视力或视觉感知有时出现模糊、重影，或对光线异常敏感。',1],['安静闭眼静坐时，我有时能在眉心感受到轻微的压力或温热感。',0],['我能在脑海中清晰地形成画面或场景，视觉化能力较强。',0],['我几乎不记得梦境内容，或感觉自己很少做梦。',1]],
+  [['我常感到头顶有压力、麻木或一种奇特的"空洞感"。',1],['我有慢性疲劳，或神经系统过于敏感——噪音、触感、情绪都容易让我不堪重负。',1],['长时间保持静止对我来说非常困难，内心总有一种躁动驱使我动起来。',1],['我的思维几乎无法停止，即使想休息，脑子里也总有声音在说话。',1],['深度睡眠后或自然醒来的早晨，我有时能感受到一种超越"自我"的宁静状态。',0],['我能长时间保持意识清醒而不思考任何具体内容——只是平静地"在这里"。',0],['某些地方、自然景观或人让我感受到一种难以名状的"能量共鸣"。',0]]
+];
+
+var TP={
+  psych:['尝试建立稳定的日常规律，如固定的睡眠时间和晨间仪式。写下你感恩的三件具体小事，培养对当下的扎根感。','给自己安排"无目的"的时间——不用手机，不做计划。尝试舞蹈、绘画或任何让你享受过程本身的活动。','从小事开始练习表达不同意见，不需要解释原因。记录每天一件你主动选择、而非被动接受的事。','觉察你在关系中的给予和接受是否平衡。试着先照顾自己的需求，而不是等到耗竭再停下来。','找一个安全的空间大声说出你一直没说的话——哪怕只是对自己说。练习用"我不想"和"我需要"开头的句子。','减少信息输入，每天留出15分钟完全安静。开始写直觉日记，记录你的感觉和事后的结果是否相符。','不必追求意义，先从减少"填满时间"开始。每天五分钟只是坐着，观察呼吸，不做任何评判。'],
+  body:['每天赤脚踩地5-10分钟。尝试根部瑜伽体式：山式、幻椅式、坐立前弯。可将红碧玉或黑电气石放在脚边辅助。','尝试流动类运动：游泳、流瑜伽、自由舞动。用热水袋温敷下腹部，淋浴时有意识地感受水流经过全身。','增加清晨日照时间。核心力量练习：船式、弓式。饮食上减少寒凉食物，增加姜黄和生姜的摄入。','每日5-10次深腹式呼吸，专注扩展胸腔。尝试猫牛式、鱼式、骆驼式拉伸上背部。在自然中散步并有意识地深呼吸。','每天轻声哼唱或唱歌，让喉咙产生振动。轻柔拉伸颈部。避免长时间大量讲话或完全沉默的极端状态。','睡前减少屏幕时间至少30分钟。尝试眉心冥想：闭眼专注眉心区域5-10分钟。保持睡眠日记，记录梦境碎片。','尝试开放性冥想（无对象觉知）。减少咖啡因摄入。在大自然中静坐，感受超越个人边界的广阔感。']
+};
+
+var S={screen:'start',ver:null,step:0,ans:[]};
+function qs(){return S.ver==='psych'?QP:QB;}
+function initAns(){S.ans=CH.map(function(_,ci){return new Array(qs()[ci].length).fill(null);});}
+function adj(v,r){return r?6-v:v;}
+function getScore(ci){var q=qs()[ci],a=S.ans[ci];if(!a||a.some(function(x){return x===null;}))return null;return a.reduce(function(t,v,i){return t+adj(v,q[i][1]);},0)/q.length;}
+function st(s){if(s<2.5)return['需要滋养','#C0392B'];if(s<3.5)return['轻微不足','#D35400'];if(s<4.5)return['较为平衡','#1E8449'];return['充盈活跃','#1A5276'];}
+
+function render(keep){
+  var sy=window.scrollY;
+  document.getElementById('app').innerHTML=S.screen==='start'?sHTML():S.screen==='quiz'?qHTML():rHTML();
+  bind();
+  if(keep)window.scrollTo(0,sy);else window.scrollTo(0,0);
+  if(S.screen==='result')setTimeout(function(){document.querySelectorAll('.cbar').forEach(function(el){el.style.width=el.dataset.p+'%';});},80);
+}
+
+function sHTML(){
+  return '<div class="sh"><div class="sh-t">脉轮平衡测试</div><div class="sh-d">7个脉轮，每轮7道题，共49题。请先选择探索方向，依照第一直觉作答效果最好。</div><div class="vg"><div class="vc" id="vp"><div class="ve">🧠</div><div class="vt">自我心理探索</div><div class="vd">通过情绪模式、行为习惯和人际关系，探索内在心理状态</div></div><div class="vc" id="vb_"><div class="ve">🌿</div><div class="vt">身体觉察</div><div class="vd">通过身体症状、感官反应和行为信号，觉察脉轮能量流动</div></div></div></div>';
+}
+
+function qHTML(){
+  var c=CH[S.step],q=qs()[S.step],a=S.ans[S.step];
+  var pct=Math.round(S.step/7*100);
+  var done=a.every(function(x){return x!==null;});
+  var vn=S.ver==='psych'?'自我心理探索':'身体觉察';
+  var qh=q.map(function(item,qi){
+    var val=a[qi];
+    var rbs=[1,2,3,4,5].map(function(v){
+      return '<button class="rb'+(val===v?' on':'')+'"'+(val===v?' style="background:'+c.col+'"':'')+' data-qi="'+qi+'" data-v="'+v+'">'+v+'</button>';
+    }).join('');
+    return '<div class="qb'+(val!==null?' ok':'')+'"><div class="qt">'+item[0]+'</div><div class="rr"><div class="rl">完全不符合</div><div class="rbw">'+rbs+'</div><div class="rl r">完全符合</div></div></div>';
+  }).join('');
+  return '<div class="pg"><div class="pf" style="width:'+pct+'%;background:'+c.col+'"></div></div><div class="ch"><div class="ci" style="background:'+c.bg+';color:'+c.col+'">'+c.sym+'</div><div class="cn">'+c.name+'</div><div class="cs">'+c.eng+' · '+c.pos+'</div></div><div style="text-align:center"><span class="vb">'+vn+'</span></div>'+qh+'<div class="nv"><div class="ni">第 <b>'+(S.step+1)+'</b> / 7 个脉轮</div><div class="nbtns">'+(S.step>0?'<button class="btn g" id="bp">← 上一个</button>':'')+'<button class="btn'+(S.step===6?' p':'')+'" id="bn"'+(done?'':' disabled')+'>'+(S.step===6?'查看结果 →':'下一个 →')+'</button></div></div>';
+}
+
+function rHTML(){
+  var scores=CH.map(function(_,i){return getScore(i);});
+  var avg=scores.reduce(function(s,v){return s+v;},0)/7;
+  var minI=0,maxI=0;
+  scores.forEach(function(s,i){if(s<scores[minI])minI=i;if(s>scores[maxI])maxI=i;});
+  var vn=S.ver==='psych'?'自我心理探索版':'身体觉察版';
+  var rows=CH.map(function(c,i){
+    var s=scores[i],sv=st(s),pct=Math.round(s/5*100);
+    return '<div class="crow"><div class="cdot" style="background:'+c.bg+';color:'+c.col+'">'+c.sym+'</div><div class="cbd"><div class="ctop"><span class="cname">'+c.name+'</span><span class="cst" style="color:'+sv[1]+'">'+sv[0]+' · '+pct+'%</span></div><div class="cbg"><div class="cbar" data-p="'+pct+'" style="background:'+c.col+'"></div></div></div></div>';
+  }).join('');
+  return '<div class="rth"><div class="rt">你的脉轮报告</div><div class="rsub">综合平衡指数：'+Math.round(avg/5*100)+'%</div><div class="rv">'+vn+'</div></div>'+rows+'<div class="sep"></div><div class="ig"><div class="icard"><div class="ilb">最需要关注</div><div class="iv" style="color:'+CH[minI].col+'">'+CH[minI].name+'</div><div class="ip">'+Math.round(scores[minI]/5*100)+'% · '+st(scores[minI])[0]+'</div></div><div class="icard"><div class="ilb">最活跃稳定</div><div class="iv" style="color:'+CH[maxI].col+'">'+CH[maxI].name+'</div><div class="ip">'+Math.round(scores[maxI]/5*100)+'% · '+st(scores[maxI])[0]+'</div></div></div><div class="tip"><h4>针对 '+CH[minI].name+' 的调理建议</h4><p>'+TP[S.ver][minI]+'</p></div><div class="rbr"><button class="btn g" id="bsw">换个版本测试</button><button class="btn" id="brs">重新测试</button></div>';
+}
+
+function bind(){
+  var vp=document.getElementById('vp'),vb_=document.getElementById('vb_');
+  if(vp)vp.onclick=function(){S.ver='psych';S.step=0;initAns();S.screen='quiz';render();};
+  if(vb_)vb_.onclick=function(){S.ver='body';S.step=0;initAns();S.screen='quiz';render();};
+  document.querySelectorAll('.rb[data-qi]').forEach(function(btn){
+    btn.onclick=function(){S.ans[S.step][+btn.dataset.qi]=+btn.dataset.v;render(true);};
+  });
+  var bp=document.getElementById('bp'),bn=document.getElementById('bn');
+  if(bp)bp.onclick=function(){S.step--;render();};
+  if(bn)bn.onclick=function(){if(S.step<6){S.step++;render();}else{S.screen='result';render();}};
+  var bsw=document.getElementById('bsw'),brs=document.getElementById('brs');
+  if(bsw)bsw.onclick=function(){S.screen='start';S.ver=null;render();};
+  if(brs)brs.onclick=function(){S.step=0;initAns();S.screen='quiz';render();};
+}
+
+render();
+</script>
+</body>
+</html>
